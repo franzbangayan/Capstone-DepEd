@@ -1,0 +1,22 @@
+# Virtual environment — every teammate creates their own locally,
+# never share this (it's huge and machine-specific)
+venv/
+env/
+
+# Python cache files — auto-generated, not real source code
+__pycache__/
+*.pyc
+
+# Your actual secrets file — NEVER commit this
+.env
+
+# Django-specific
+*.log
+db.sqlite3
+
+# VS Code settings (personal editor preferences, not project code)
+.vscode/
+
+# OS-generated junk files
+.DS_Store
+Thumbs.db
