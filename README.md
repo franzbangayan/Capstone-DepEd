@@ -5,5 +5,5 @@ v1.
 • Full REST API for all 12 tables (Create/Read/Update/Delete)
 • Login/Authentication via JWT
 • API lockdown (para sa login security)
-• Business rule validation (di magaaccept kapag less than yung minimum work load hours and blank entries)
+• Business rule validation (It will not accept entries if the work load hours are less than the minimum required or if there are blank entries.)
 • Teaching load-endpoint for algorithm
