@@ -1,0 +1,161 @@
+/* ─── Dashboard ──────────────────────────────────────────────────────────── */
+
+.stat-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+.stat-card {
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.stat-card.blue   { border: 1px solid #bfdbfe; }
+.stat-card.indigo { border: 1px solid #c7d2fe; }
+.stat-card.amber  { border: 1px solid #fde68a; }
+.stat-card.green  { border: 1px solid #bbf7d0; }
+
+.stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.stat-icon svg { width: 20px; height: 20px; }
+.stat-icon.blue   { background: #eff6ff;   color: #2563eb; }
+.stat-icon.indigo { background: #e0e7ff; color: #4338ca; }
+.stat-icon.amber  { background: #fffbeb;           color: #d97706; }
+.stat-icon.green  { background: #f0fdf4;           color: #16a34a; }
+
+.stat-value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; color: #0f172a; }
+.stat-value.alert { color: #d97706; }
+.stat-label { font-size: 11px; font-weight: 500; color: #64748b; margin-top: 2px; }
+
+/* Workload chart */
+.chart-card { padding: 24px; }
+
+.chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #475569;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+}
+.legend-dot.assigned  { background: #2563eb; }
+.legend-dot.remaining { background: #e2e8f0; }
+
+.chart-rows { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+
+.chart-row { display: flex; align-items: center; gap: 10px; }
+
+.chart-label {
+  width: 96px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.chart-track {
+  flex: 1;
+  height: 24px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.chart-bar {
+  height: 100%;
+  border-radius: 6px;
+  transition: width .3s ease;
+}
+.chart-bar.full    { background: #2563eb; }
+.chart-bar.high    { background: #3b82f6; }
+.chart-bar.low     { background: #fbbf24; }
+
+.chart-hours {
+  width: 44px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* Generate CTA */
+.generate-card {
+  background: linear-gradient(135deg, #0f2744, #1e4976);
+  border-radius: 14px;
+  padding: 24px;
+  color: #fff;
+}
+.generate-icon-wrap {
+  width: 36px;
+  height: 36px;
+  background: rgba(59,130,246,.25);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+.generate-icon-wrap svg { width: 20px; height: 20px; color: #93c5fd; }
+.generate-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.generate-desc  { font-size: 11px; color: #93c5fd; line-height: 1.6; margin-bottom: 20px; }
+.generate-btn {
+  width: 100%;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px;
+  border-radius: 10px;
+  transition: background .15s;
+}
+.generate-btn:hover { background: #60a5fa; }
+
+/* Assignment status */
+.status-list { display: flex; flex-direction: column; gap: 10px; }
+.status-row { display: flex; align-items: center; justify-content: space-between; }
+.status-left { display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.green  { background: #22c55e; }
+.status-dot.amber  { background: #fbbf24; }
+.status-dot.red    { background: #f87171; }
+.status-text { font-size: 12px; color: #475569; }
+.status-count { font-size: 12px; font-weight: 600; color: #0f172a; }
+
+/* Activity */
+.activity-list { display: flex; flex-direction: column; }
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #fafafa;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; margin-top: 6px; }
+.activity-dot.green  { background: #22c55e; }
+.activity-dot.amber  { background: #fbbf24; }
+.activity-dot.blue   { background: #60a5fa; }
+.activity-msg  { flex: 1; font-size: 13px; color: #334155; }
+.activity-time { font-size: 11px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
+
+.chart-empty-state {
+  text-align: center;
+  padding: 40px 0;
+  font-size: 13px;
+  color: #94a3b8;
+  margin-top: 20px;
+}
