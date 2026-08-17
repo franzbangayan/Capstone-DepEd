@@ -3,10 +3,9 @@ from django.db import models
 # ============================================================
 # Django Models for the Web-Based Automated Teacher Loading
 # and Assignment System (based on Chapter 3, Section 3.6)
-# ============================================================
-# Each class below = one table in your 'deped' database.
-# Django will CREATE these tables for you when we run migrations
-# (you don't need to write CREATE TABLE by hand anymore).
+# Updated: full_name split into last/first/middle name,
+# employment_status converted from free text into a proper
+# lookup table (EmploymentStatus) per adviser feedback.
 # ============================================================
 
 
@@ -14,7 +13,7 @@ class School(models.Model):
     school_id = models.AutoField(primary_key=True)
     deped_school_id = models.CharField(max_length=20, unique=True)
     school_name = models.CharField(max_length=150)
-    school_level = models.CharField(max_length=50)  # Elementary, JHS, SHS, Integrated
+    school_level = models.CharField(max_length=50)
     address = models.CharField(max_length=255, blank=True, null=True)
 
     class Meta:
@@ -61,8 +60,8 @@ class Strand(models.Model):
 
 class GradeLevel(models.Model):
     grade_level_id = models.AutoField(primary_key=True)
-    grade_name = models.CharField(max_length=50)  # e.g. "Grade 7"
-    education_level = models.CharField(max_length=50)  # Elementary, JHS, SHS
+    grade_name = models.CharField(max_length=50)
+    education_level = models.CharField(max_length=50)
 
     class Meta:
         db_table = 'GRADE_LEVEL'
@@ -74,7 +73,7 @@ class GradeLevel(models.Model):
 class Subject(models.Model):
     subject_id = models.AutoField(primary_key=True)
     subject_name = models.CharField(max_length=100)
-    subject_type = models.CharField(max_length=50, blank=True, null=True)  # Core, Applied, Specialized
+    subject_type = models.CharField(max_length=50, blank=True, null=True)
 
     class Meta:
         db_table = 'SUBJECT'
@@ -96,16 +95,32 @@ class UserAccount(models.Model):
         return self.username
 
 
-class Teacher(models.Model):
-    EMPLOYMENT_STATUS_CHOICES = [
-        ('Permanent', 'Permanent'),
-        ('Provisional', 'Provisional'),
-        ('Part-time', 'Part-time'),
-    ]
+class EmploymentStatus(models.Model):
+    """
+    NEW TABLE (per adviser feedback): lookup table for standardized
+    employment status classifications, replacing the old free-text
+    VARCHAR field on Teacher. Same pattern as Track/Strand/GradeLevel.
+    """
+    status_id = models.AutoField(primary_key=True)
+    status_name = models.CharField(max_length=50)
 
+    class Meta:
+        db_table = 'EMPLOYMENT_STATUS'
+        verbose_name = 'Employment Status'
+        verbose_name_plural = 'Employment Statuses'
+
+    def __str__(self):
+        return self.status_name
+
+
+class Teacher(models.Model):
     teacher_id = models.AutoField(primary_key=True)
-    full_name = models.CharField(max_length=150)
-    employment_status = models.CharField(max_length=50, choices=EMPLOYMENT_STATUS_CHOICES)
+    last_name = models.CharField(max_length=100)
+    first_name = models.CharField(max_length=100)
+    middle_name = models.CharField(max_length=100, blank=True, null=True)
+    employment_status = models.ForeignKey(
+        EmploymentStatus, on_delete=models.PROTECT, db_column='employment_status_id'
+    )
     max_load_hours = models.FloatField()
     school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id')
 
@@ -113,7 +128,20 @@ class Teacher(models.Model):
         db_table = 'TEACHER'
 
     def __str__(self):
-        return self.full_name
+        return f"{self.last_name}, {self.first_name}"
+
+    @property
+    def full_name(self):
+        """
+        Convenience property so other code (like algorithm.py) that
+        expects a single 'full name' string still works, without
+        needing a full_name column in the database.
+        """
+        parts = [self.first_name]
+        if self.middle_name:
+            parts.append(self.middle_name)
+        parts.append(self.last_name)
+        return " ".join(parts)
 
 
 class TeacherSpecialization(models.Model):
@@ -123,10 +151,10 @@ class TeacherSpecialization(models.Model):
 
     class Meta:
         db_table = 'TEACHER_SPECIALIZATION'
-        unique_together = ('teacher', 'subject')  # a teacher can't be linked to the same subject twice
+        unique_together = ('teacher', 'subject')
 
     def __str__(self):
-        return f"{self.teacher.full_name} - {self.subject.subject_name}"
+        return f"{self.teacher} - {self.subject.subject_name}"
 
 
 class Section(models.Model):
@@ -173,4 +201,4 @@ class TeachingLoad(models.Model):
         db_table = 'TEACHING_LOAD'
 
     def __str__(self):
-        return f"{self.teacher.full_name} -> {self.offering.subject.subject_name} ({self.section.section_name})"
+        return f"{self.teacher} -> {self.offering.subject.subject_name} ({self.section.section_name})"
