@@ -1,0 +1,102 @@
+/* ─── Curriculum ─────────────────────────────────────────────────────────── */
+
+.tabs-bar {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  overflow-x: auto;
+}
+.tab-btn {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s, background .15s;
+}
+.tab-btn:hover { color: #0f172a; background: #fafafa; }
+.tab-btn.active { color: #2563eb; border-bottom-color: #2563eb; background: rgba(239,246,255,.4); }
+
+.tab-body { padding: 24px; }
+
+.tab-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.tab-header-text h3 { font-size: 14px; font-weight: 600; color: #0f172a; }
+.tab-header-text p  { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+/* Grade levels */
+.grade-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+.grade-group { border-radius: 14px; padding: 16px; }
+.grade-group.elem   { background: #f0f9ff; border: 1px solid #bae6fd; }
+.grade-group.jhs    { background: #eef2ff; border: 1px solid #c7d2fe; }
+.grade-group.shs    { background: #faf5ff; border: 1px solid #e9d5ff; }
+
+.grade-group-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.grade-group-badge.elem   { background: #e0f2fe; color: #0369a1; }
+.grade-group-badge.jhs    { background: #e0e7ff; color: #4338ca; }
+.grade-group-badge.shs    { background: #ede9fe; color: #6d28d9; }
+
+.grade-list { display: flex; flex-direction: column; gap: 6px; }
+.grade-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.7);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.grade-item-label { font-size: 13px; font-weight: 500; color: #0f172a; }
+.grade-item button { color: #cbd5e1; }
+.grade-item button:hover { color: #64748b; }
+.grade-item button svg { width: 13px; height: 13px; display: block; }
+
+/* Tracks */
+.tracks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+.track-card { border-radius: 14px; padding: 16px; }
+.track-card.academic { background: #eff6ff; border: 1px solid #bfdbfe; }
+.track-card.tvl      { background: #fffbeb;         border: 1px solid #fde68a; }
+.track-card.sports   { background: #f0fdf4;         border: 1px solid #bbf7d0; }
+.track-card.arts     { background: #faf5ff;         border: 1px solid #e9d5ff; }
+
+.track-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.strand-list { display: flex; flex-direction: column; gap: 8px; }
+.strand-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.7);
+}
+.strand-dot { width: 4px; height: 4px; border-radius: 50%; background: #94a3b8; margin-top: 6px; flex-shrink: 0; }
+.strand-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.strand-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+/* School year */
+.sy-active-row { background: rgba(240,253,244,.5); }

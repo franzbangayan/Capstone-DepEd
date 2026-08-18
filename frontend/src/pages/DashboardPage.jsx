@@ -7,15 +7,15 @@ import '../styles/App.css'
 
 const DashboardPage = () => {
   const navigate = useNavigate()
-    const [teacherCount, setTeacherCount] = useState(null)  
-    const [sectionCount, setSectionCount] = useState(null)
-    const [schoolYear, setSchoolYear] = useState(null)
+    const [teacherCount, setTeacherCount] = useState()  
+    const [sectionCount, setSectionCount] = useState()
+    const [schoolYear, setSchoolYear] = useState()
 
 
   useEffect(() => {
-    api.get("/api/teachers/")
-    api.get("/api/sections/")
-    api.get("/api/school-years/")
+    api.get("/api/teachers/", 
+            "/api/sections/",
+            "/api/school-years/")
       .then((res) => {
         const schoolYear = res.data[0]
 

@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute"
 import Layout from "./components/Layout"
 import DashboardPage from "./pages/DashboardPage"
 import TeachersPage from "./pages/TeachersPage"
+import CurriculumPage from "./pages/CurriculumPage"
 
 function Logout() {
   localStorage.clear()
@@ -35,6 +36,7 @@ function App() {
         >
           <Route index element={<DashboardPage />} />
              <Route path="teachers" element={<TeachersPage />} />
+                  <Route path="curriculum" element={<CurriculumPage />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
