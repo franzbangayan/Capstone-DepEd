@@ -1,9 +1,21 @@
+from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
     UserAccount, Teacher, TeacherSpecialization, Section,
     SubjectOffering, TeachingLoad
 )
+
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'password']
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def create(self, validated_data):
+        user = User.objects.create_user(**validated_data)
+        return user
 
 # A ModelSerializer auto-generates fields based on the model.
 # fields = '__all__' means: include every column from the table in the JSON.
