@@ -8,16 +8,26 @@ import '../styles/App.css'
 const DashboardPage = () => {
   const navigate = useNavigate()
     const [teacherCount, setTeacherCount] = useState(null)  
+    const [sectionCount, setSectionCount] = useState(null)
+    const [schoolYear, setSchoolYear] = useState(null)
+
 
   useEffect(() => {
     api.get("/api/teachers/")
+    api.get("/api/sections/")
+    api.get("/api/school-years/")
       .then((res) => {
+        const schoolYear = res.data[0]
+
         setTeacherCount(res.data.length)
+        setSectionCount(res.data.length)
+        setSchoolYear(`${schoolYear.year_start}-${schoolYear.year_end}`)
       })
       .catch((err) => {
         console.error(err)
       })
   }, [])
+
 
   return (
     <div className="screen stack">
@@ -39,7 +49,7 @@ const DashboardPage = () => {
             <IconSchool />
           </div>
           <div>
-            <div className="stat-value">--</div>
+            <div className="stat-value">{sectionCount === null ? "--" : sectionCount}</div>
             <div className="stat-label">Total Sections</div>
           </div>
         </div>
@@ -59,7 +69,7 @@ const DashboardPage = () => {
             <IconCalendar />
           </div>
           <div>
-            <div className="stat-value">--</div>
+            <div className="stat-value">{schoolYear === null ? "--" : schoolYear}</div>
             <div className="stat-label">School Year</div>
           </div>
         </div>
