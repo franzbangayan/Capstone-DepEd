@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 """
 URL configuration for config project.
 
@@ -17,12 +16,6 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
-
-urlpatterns = [
-    path('admin/', admin.site.urls),
-=======
-from django.contrib import admin
-from django.urls import path, include
 from core.views import CreateUserView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -31,7 +24,6 @@ urlpatterns = [
     path("api/user/register/", CreateUserView.as_view(), name="register"),
     path("api/token/", TokenObtainPairView.as_view(), name="get_token"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="refresh"),
->>>>>>> 3901a6cc7e2c14b62529c7db6985dbbe8c4cae03
     path('api/', include('core.urls')),
     path('api-auth/', include('rest_framework.urls')),
 ]
