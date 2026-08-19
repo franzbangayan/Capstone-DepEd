@@ -1,0 +1,19 @@
+/* ─── Reports ────────────────────────────────────────────────────────────── */
+
+.report-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+.report-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.report-card-top { display: flex; align-items: flex-start; justify-content: space-between; }
+.report-card-title { font-size: 13px; font-weight: 600; color: #0f172a; line-height: 1.4; }
+.report-card-desc  { font-size: 11px; color: #64748b; line-height: 1.6; flex: 1; }
+.report-card-actions { display: flex; gap: 8px; padding-top: 4px; }
+
+.report-history-table { margin-top: 0; border: none; border-radius: 0; }

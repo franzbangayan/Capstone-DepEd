@@ -1,0 +1,90 @@
+/* ─── Scheduling ─────────────────────────────────────────────────────────── */
+
+.sched-layout { display: grid; grid-template-columns: 2fr 3fr; gap: 20px; }
+
+.edu-toggle { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.edu-btn {
+  padding: 10px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  text-align: center;
+  line-height: 1.3;
+  transition: all .15s;
+}
+.edu-btn:hover { border-color: #3b82f6; color: #2563eb; }
+.edu-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; box-shadow: 0 1px 4px rgba(37,99,235,.3); }
+
+.constraints-list { display: flex; flex-direction: column; gap: 10px; }
+.constraint-row { display: flex; align-items: flex-start; gap: 10px; }
+.constraint-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.constraint-icon.ok   { background: #dcfce7; }
+.constraint-icon.warn { background: #fef3c7; }
+.constraint-icon svg  { width: 10px; height: 10px; display: block; }
+.constraint-icon.ok svg  { color: #16a34a; }
+.constraint-icon.warn svg { color: #d97706; }
+.constraint-text { font-size: 11px; line-height: 1.6; }
+.constraint-text.ok   { color: #334155; }
+.constraint-text.warn { color: #b45309; }
+
+.proceed-btn {
+  width: 100%;
+  background: #2563eb;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 12px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+  transition: background .15s;
+}
+.proceed-btn:hover { background: #1d4ed8; }
+.proceed-btn svg { width: 16px; height: 16px; }
+
+.readonly-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #475569;
+}
+.readonly-badge svg { width: 13px; height: 13px; }
+
+.preview-total-label { font-size: 11px; font-weight: 600; color: #334155; }
+.preview-total-value { font-size: 14px; font-weight: 700; color: #2563eb; font-family: monospace; }
+
+.info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 20px;
+}
+.info-box svg { width: 16px; height: 16px; color: #2563eb; flex-shrink: 0; margin-top: 1px; }
+.info-box-title { font-size: 11px; font-weight: 600; color: #1e40af; margin-bottom: 4px; }
+.info-box-text  { font-size: 11px; color: #1d4ed8; line-height: 1.6; }
+
+.sched-sub { margin-bottom: 20px; }
+.sched-preview-header { margin-bottom: 16px; }

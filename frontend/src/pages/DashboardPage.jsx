@@ -13,9 +13,9 @@ const DashboardPage = () => {
 
 
   useEffect(() => {
-    api.get("/api/teachers/", 
-            "/api/sections/",
-            "/api/school-years/")
+    api.get("/api/teachers/")
+    api.get("/api/sections/")
+    api.get("/api/school-years/")
       .then((res) => {
         const schoolYear = res.data[0]
 

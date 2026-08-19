@@ -84,7 +84,7 @@ const GradeLevelsTab = () => {
       <div className="tab-header">
         <div className="tab-header-text">
           <h3>Grade Levels</h3>
-          <p>Complete K-12 grade level structure as per DepEd — read only</p>
+          <p>Complete K-12 grade level structure as per DepEd </p>
         </div>
       </div>
 

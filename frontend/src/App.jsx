@@ -8,6 +8,8 @@ import Layout from "./components/Layout"
 import DashboardPage from "./pages/DashboardPage"
 import TeachersPage from "./pages/TeachersPage"
 import CurriculumPage from "./pages/CurriculumPage"
+import SchedulingPage from "./pages/SchedulingPage"
+import ReportsPage from "./pages/ReportsPage"
 
 function Logout() {
   localStorage.clear()
@@ -35,8 +37,10 @@ function App() {
           }
         >
           <Route index element={<DashboardPage />} />
-             <Route path="teachers" element={<TeachersPage />} />
-                  <Route path="curriculum" element={<CurriculumPage />} />
+          <Route path="teachers" element={<TeachersPage />} />
+          <Route path="curriculum" element={<CurriculumPage />} />
+          <Route path="scheduling" element={<SchedulingPage />} />
+          <Route path="reports" element={<ReportsPage />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />
