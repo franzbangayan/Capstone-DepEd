@@ -8,13 +8,13 @@ from rest_framework.permissions import AllowAny
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
     UserAccount, Teacher, TeacherSpecialization, Section,
-    SubjectOffering, TeachingLoad
+    SubjectOffering, TeachingLoad, EmploymentStatus
 )
 from .serializers import (
     SchoolSerializer, SchoolYearSerializer, TrackSerializer, StrandSerializer,
     GradeLevelSerializer, SubjectSerializer, UserAccountSerializer,
     TeacherSerializer, TeacherSpecializationSerializer, SectionSerializer,
-    SubjectOfferingSerializer, TeachingLoadSerializer
+    SubjectOfferingSerializer, TeachingLoadSerializer, EmploymentStatusSerializer
 )
 
 
@@ -67,6 +67,9 @@ class UserAccountViewSet(viewsets.ModelViewSet):
     queryset = UserAccount.objects.all()
     serializer_class = UserAccountSerializer
 
+class EmploymentStatusViewSet(viewsets.ModelViewSet):
+    queryset = EmploymentStatus.objects.all()
+    serializer_class = EmploymentStatusSerializer
 
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all()
