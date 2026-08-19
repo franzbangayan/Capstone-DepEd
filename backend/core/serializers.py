@@ -3,7 +3,7 @@ from rest_framework import serializers
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
     UserAccount, Teacher, TeacherSpecialization, Section,
-    SubjectOffering, TeachingLoad
+    SubjectOffering, TeachingLoad, EmploymentStatus
 )
 
 
@@ -65,7 +65,11 @@ class UserAccountSerializer(serializers.ModelSerializer):
             'password_hash': {'write_only': True}
         }
 
-
+class EmploymentStatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EmploymentStatus
+        fields = '__all__'
+        
 class TeacherSerializer(serializers.ModelSerializer):
     class Meta:
         model = Teacher
