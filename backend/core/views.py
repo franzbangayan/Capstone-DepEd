@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from django.contrib.auth.models import User
+from .models import User
 from rest_framework import generics
 from .serializers import UserSerializer
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -7,12 +7,12 @@ from rest_framework import viewsets
 from rest_framework.permissions import AllowAny
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
-    UserAccount, Teacher, TeacherSpecialization, Section,
+    User, Teacher, TeacherSpecialization, Section,
     SubjectOffering, TeachingLoad, EmploymentStatus
 )
 from .serializers import (
     SchoolSerializer, SchoolYearSerializer, TrackSerializer, StrandSerializer,
-    GradeLevelSerializer, SubjectSerializer, UserAccountSerializer,
+    GradeLevelSerializer, SubjectSerializer,
     TeacherSerializer, TeacherSpecializationSerializer, SectionSerializer,
     SubjectOfferingSerializer, TeachingLoadSerializer, EmploymentStatusSerializer
 )
@@ -63,9 +63,9 @@ class SubjectViewSet(viewsets.ModelViewSet):
     serializer_class = SubjectSerializer
 
 
-class UserAccountViewSet(viewsets.ModelViewSet):
-    queryset = UserAccount.objects.all()
-    serializer_class = UserAccountSerializer
+# class UserViewSet(viewsets.ModelViewSet):
+#     queryset = User.objects.all()
+#     serializer_class = UserSerializer
 
 class EmploymentStatusViewSet(viewsets.ModelViewSet):
     queryset = EmploymentStatus.objects.all()
@@ -98,7 +98,7 @@ class TeachingLoadViewSet(viewsets.ModelViewSet):
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import UserAccount
+from .models import User
 from .auth import verify_password, generate_token
 from rest_framework.permissions import AllowAny
 

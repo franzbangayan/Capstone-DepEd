@@ -2,7 +2,7 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
     SchoolViewSet, SchoolYearViewSet, TrackViewSet, StrandViewSet,
-    GradeLevelViewSet, SubjectViewSet, UserAccountViewSet, TeacherViewSet,
+    GradeLevelViewSet, SubjectViewSet, TeacherViewSet,
     TeacherSpecializationViewSet, SectionViewSet, SubjectOfferingViewSet,
     TeachingLoadViewSet, LoginView, GenerateLoadView, EmploymentStatusViewSet
 )
@@ -14,7 +14,7 @@ router.register(r'tracks', TrackViewSet)
 router.register(r'strands', StrandViewSet)
 router.register(r'grade-levels', GradeLevelViewSet)
 router.register(r'subjects', SubjectViewSet)
-router.register(r'user-accounts', UserAccountViewSet)
+# router.register(r'user', UserViewSet)
 router.register(r'teachers', TeacherViewSet)
 router.register(r'teacher-specializations', TeacherSpecializationViewSet)
 router.register(r'sections', SectionViewSet)
