@@ -1,8 +1,9 @@
 from django import forms
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
-    UserAccount, Teacher, TeacherSpecialization, Section,
+    User, Teacher, TeacherSpecialization, Section,
     SubjectOffering, TeachingLoad, EmploymentStatus
 )
 
@@ -45,7 +46,19 @@ admin.site.register(Track)
 admin.site.register(Strand)
 admin.site.register(GradeLevel)
 admin.site.register(Subject)
-admin.site.register(UserAccount)
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    fieldsets = UserAdmin.fieldsets + (
+        ('School Information', {
+            'fields': ('school',),
+        }),
+    )
+
+    add_fieldsets = UserAdmin.add_fieldsets + (
+        ('School Information', {
+            'fields': ('school',),
+        }),
+    )
 admin.site.register(EmploymentStatus)
 admin.site.register(Teacher)
 admin.site.register(TeacherSpecialization)

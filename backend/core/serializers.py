@@ -1,8 +1,7 @@
-from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
-    UserAccount, Teacher, TeacherSpecialization, Section,
+    User, Teacher, TeacherSpecialization, Section,
     SubjectOffering, TeachingLoad, EmploymentStatus
 )
 
@@ -14,8 +13,16 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
-        user = User.objects.create_user(**validated_data)
+        password = validated_data.pop('password', None)
+        user = User.objects.create_user(password=password, **validated_data)
         return user
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop('password', None)
+        if password is not None:
+            instance.set_password(password)
+        return super().update(instance, validated_data)
+
 
 # A ModelSerializer auto-generates fields based on the model.
 # fields = '__all__' means: include every column from the table in the JSON.
@@ -56,14 +63,6 @@ class SubjectSerializer(serializers.ModelSerializer):
         model = Subject
         fields = '__all__'
 
-
-class UserAccountSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserAccount
-        fields = '__all__'
-        extra_kwargs = {
-            'password_hash': {'write_only': True}
-        }
 
 class EmploymentStatusSerializer(serializers.ModelSerializer):
     class Meta:
