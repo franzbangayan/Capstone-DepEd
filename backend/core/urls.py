@@ -3,8 +3,9 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     SchoolViewSet, SchoolYearViewSet, TrackViewSet, StrandViewSet,
     GradeLevelViewSet, SubjectViewSet, TeacherViewSet,
-    TeacherSpecializationViewSet, SectionViewSet, SubjectOfferingViewSet,
-    TeachingLoadViewSet, LoginView, GenerateLoadView, EmploymentStatusViewSet
+    TeacherLoadLimitViewSet, TeacherSpecializationViewSet, SectionViewSet,
+    SubjectOfferingViewSet, TeachingLoadViewSet, LoginView, GenerateLoadView,
+    EmploymentStatusViewSet
 )
 
 router = DefaultRouter()
@@ -16,6 +17,7 @@ router.register(r'grade-levels', GradeLevelViewSet)
 router.register(r'subjects', SubjectViewSet)
 # router.register(r'user', UserViewSet)
 router.register(r'teachers', TeacherViewSet)
+router.register(r'teacher-load-limits', TeacherLoadLimitViewSet)
 router.register(r'teacher-specializations', TeacherSpecializationViewSet)
 router.register(r'sections', SectionViewSet)
 router.register(r'subject-offerings', SubjectOfferingViewSet)
