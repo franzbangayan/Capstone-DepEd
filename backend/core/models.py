@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
 
 # ============================================================
 # Django Models for the Web-Based Automated Teacher Loading
@@ -81,18 +82,26 @@ class Subject(models.Model):
     def __str__(self):
         return self.subject_name
 
-
-class UserAccount(models.Model):
-    user_id = models.AutoField(primary_key=True)
-    username = models.CharField(max_length=50, unique=True)
-    password_hash = models.CharField(max_length=255)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id')
+class User(AbstractUser):
+    school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id', blank=True, null=True)
 
     class Meta:
         db_table = 'USER_ACCOUNT'
 
     def __str__(self):
         return self.username
+
+# class UserAccount(models.Model):
+#     user_id = models.AutoField(primary_key=True)
+#     username = models.CharField(max_length=50, unique=True)
+#     password_hash = models.CharField(max_length=255)
+#     school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id')
+
+#     class Meta:
+#         db_table = 'USER_ACCOUNT'
+
+#     def __str__(self):
+#         return self.username
 
 
 class EmploymentStatus(models.Model):
