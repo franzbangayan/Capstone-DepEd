@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
-    User, Teacher, TeacherSpecialization, Section,
+    User, Teacher, TeacherLoadLimit, TeacherSpecialization, Section,
     SubjectOffering, TeachingLoad, EmploymentStatus
 )
 
@@ -68,10 +68,21 @@ class EmploymentStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmploymentStatus
         fields = '__all__'
-        
+
+
 class TeacherSerializer(serializers.ModelSerializer):
     class Meta:
         model = Teacher
+        fields = '__all__'
+
+
+class TeacherLoadLimitSerializer(serializers.ModelSerializer):
+    """
+    NEW: serializer for the load-limit history table. max_load_hours
+    now lives here instead of on Teacher directly.
+    """
+    class Meta:
+        model = TeacherLoadLimit
         fields = '__all__'
 
 
@@ -112,6 +123,15 @@ class TeachingLoadSerializer(serializers.ModelSerializer):
         offering = data.get('offering', getattr(self.instance, 'offering', None))
 
         if teacher and offering:
+            # max_load_hours now lives on TeacherLoadLimit, not Teacher,
+            # so pull the teacher's currently active limit record.
+            current_limit = teacher.current_load_limit
+            if current_limit is None:
+                raise serializers.ValidationError(
+                    f"{teacher.full_name} has no active load limit on record. "
+                    f"Add a TeacherLoadLimit entry before assigning a load."
+                )
+
             # Get every OTHER teaching load already assigned to this teacher.
             existing_loads = TeachingLoad.objects.filter(teacher=teacher)
 
@@ -125,11 +145,11 @@ class TeachingLoadSerializer(serializers.ModelSerializer):
             current_hours = sum(load.offering.hours_per_week for load in existing_loads)
             new_total = current_hours + offering.hours_per_week
 
-            if new_total > teacher.max_load_hours:
+            if new_total > current_limit.max_load_hours:
                 raise serializers.ValidationError(
                     f"This assignment would give {teacher.full_name} "
                     f"{new_total} hours/week, exceeding their max of "
-                    f"{teacher.max_load_hours} hours/week."
+                    f"{current_limit.max_load_hours} hours/week."
                 )
 
         return data
