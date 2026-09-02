@@ -76,7 +76,6 @@ const TeacherFormModal = ({
 
   const storedSchoolId = localStorage.getItem("school_id");
   const environmentSchoolId = import.meta.env.VITE_SCHOOL_ID;
-  const subjectIds = specs.map(resolveSubjectId);
   const resolvedSchoolId = localStorage.getItem("school_id");
 
 
@@ -103,10 +102,6 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
   return;
 }
 
-    if (subjectIds.some((id) => !id)) {
-      setError('One or more selected specializations do not exist in the Subjects table.')
-      return
-    }
 
     setSaving(true)
 
@@ -150,32 +145,7 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
         await api.post('/api/teacher-load-limits/', loadPayload)
       }
 
-      const specializationResponse = await api.get('/api/teacher-specializations/')
-      const specializations = Array.isArray(specializationResponse.data)
-        ? specializationResponse.data
-        : specializationResponse.data.results || []
-
-      const currentSpecializations = specializations.filter(
-        (item) => Number(item.teacher) === Number(teacherId) && item.date_ended === ACTIVE_DATE
-      )
-
-      await Promise.all(
-        currentSpecializations.map((item) => (
-          api.delete(`/api/teacher-specializations/${item.specialization_id}/`)
-        ))
-      )
-
-      await Promise.all(
-        subjectIds.map((subjectId) => (
-          api.post('/api/teacher-specializations/', {
-            teacher: teacherId,
-            subject: subjectId,
-            date_started: new Date().toISOString().slice(0, 10),
-            date_ended: ACTIVE_DATE,
-          })
-        ))
-      )
-
+      
       onSaved?.()
       onClose()
     } catch (saveError) {
