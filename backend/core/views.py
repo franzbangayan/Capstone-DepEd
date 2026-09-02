@@ -1,21 +1,23 @@
-from django.shortcuts import render
-from .models import User
-from rest_framework import generics
-from .serializers import UserSerializer
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import viewsets
+from django.contrib.auth import authenticate
+from rest_framework import generics, viewsets, status
+from rest_framework.views import APIView
+from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
-    User, Teacher, TeacherSpecialization, Section,
+    User, Teacher, TeacherLoadLimit, TeacherSpecialization, Section,
     SubjectOffering, TeachingLoad, EmploymentStatus
 )
 from .serializers import (
-    SchoolSerializer, SchoolYearSerializer, TrackSerializer, StrandSerializer,
-    GradeLevelSerializer, SubjectSerializer,
-    TeacherSerializer, TeacherSpecializationSerializer, SectionSerializer,
-    SubjectOfferingSerializer, TeachingLoadSerializer, EmploymentStatusSerializer
+    UserSerializer, SchoolSerializer, SchoolYearSerializer, TrackSerializer,
+    StrandSerializer, GradeLevelSerializer, SubjectSerializer,
+    TeacherSerializer, TeacherLoadLimitSerializer, TeacherSpecializationSerializer,
+    SectionSerializer, SubjectOfferingSerializer, TeachingLoadSerializer,
+    EmploymentStatusSerializer
 )
+from .algorithm import run_greedy_allocation
 
 
 class CreateUserView(generics.CreateAPIView):
@@ -67,13 +69,20 @@ class SubjectViewSet(viewsets.ModelViewSet):
 #     queryset = User.objects.all()
 #     serializer_class = UserSerializer
 
+
 class EmploymentStatusViewSet(viewsets.ModelViewSet):
     queryset = EmploymentStatus.objects.all()
     serializer_class = EmploymentStatusSerializer
 
+
 class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all()
     serializer_class = TeacherSerializer
+
+
+class TeacherLoadLimitViewSet(viewsets.ModelViewSet):
+    queryset = TeacherLoadLimit.objects.all()
+    serializer_class = TeacherLoadLimitSerializer
 
 
 class TeacherSpecializationViewSet(viewsets.ModelViewSet):
@@ -95,23 +104,18 @@ class TeachingLoadViewSet(viewsets.ModelViewSet):
     queryset = TeachingLoad.objects.all()
     serializer_class = TeachingLoadSerializer
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .models import User
-from .auth import verify_password, generate_token
-from rest_framework.permissions import AllowAny
 
 class LoginView(APIView):
-    permission_classes = [AllowAny]
-    
     """
     POST /api/login/
     Body: { "username": "...", "password": "..." }
 
-    Looks up the username in USER_ACCOUNT, checks the password against
-    the stored hash, and returns a JWT token if correct.
+    Authenticates against the User model (AbstractUser, so password
+    hashing/checking is handled by Django itself) and returns a
+    simplejwt access/refresh token pair on success.
     """
+    permission_classes = [AllowAny]
+
     def post(self, request):
         username = request.data.get('username')
         password = request.data.get('password')
@@ -122,9 +126,9 @@ class LoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            user_account = UserAccount.objects.get(username=username)
-        except UserAccount.DoesNotExist:
+        user = authenticate(request, username=username, password=password)
+
+        if user is None:
             # Deliberately vague error message — don't reveal whether
             # the username exists or not, that's a security best practice.
             return Response(
@@ -132,24 +136,14 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
-        if not verify_password(password, user_account.password_hash):
-            return Response(
-                {'error': 'Invalid username or password.'},
-                status=status.HTTP_401_UNAUTHORIZED
-            )
-
-        token = generate_token(user_account)
+        refresh = RefreshToken.for_user(user)
         return Response({
-            'token': token,
-            'user_id': user_account.user_id,
-            'username': user_account.username,
-            'school_id': user_account.school_id,
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user_id': user.id,
+            'username': user.username,
+            'school_id': user.school_id,
         }, status=status.HTTP_200_OK)
-
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .algorithm import run_greedy_allocation
 
 
 class GenerateLoadView(APIView):
