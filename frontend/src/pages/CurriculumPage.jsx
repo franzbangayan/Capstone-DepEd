@@ -2,10 +2,11 @@ import '../styles/CurriculumPage.css'
 import { useState } from 'react'
 import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevronDown } from '../components/Icons'
 import AddSubjectModal from '../components/AddSubjectModal'
+import AddSectionModal from '../components/AddSectionModal'
+import AddSchoolYearModal from '../components/AddSchoolYearModal'
+  
+// no backend
 
-  
-  /* ── Static K-12 curriculum structure (DepEd standard, not user data) ── */
-  
   const GRADE_LEVELS = [
     { label: 'Kindergarten', group: 'Elementary' },
     { label: 'Grade 1',      group: 'Elementary' },

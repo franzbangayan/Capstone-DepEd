@@ -43,7 +43,7 @@ const ReportsPage = ({ onNavigate }) => {
             Comparison of assigned hours per teacher against maximum load capacity.
           </div>
           <div className="report-card-actions">
-            <button
+            <button 
               className="btn btn-outline btn-sm btn-full"
               onClick={() => { onNavigate && onNavigate('workload-dashboard') }}
             >
