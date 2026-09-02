@@ -154,21 +154,12 @@ const TracksTab = () => {
 }
 
 const SUBJECT_REGISTRY = [
-  { name: 'Filipino',             type: 'Core' },
-  { name: 'English',              type: 'Core' },
-  { name: 'Mathematics',          type: 'Core' },
-  { name: 'Science',              type: 'Core' },
-  { name: 'Araling Panlipunan',   type: 'Core' },
-  { name: 'MAPEH',                type: 'Applied' },
-  { name: 'TLE',                  type: 'Applied' },
-  { name: 'General Biology 1',    type: 'Specialized' },
-  { name: 'Business Mathematics', type: 'Specialized' },
-  { name: 'Creative Writing',     type: 'Specialized' },
+
 ]
 
 const subjectTypeBadge = (type) => {
-  if (type === 'Core')        return <span className="badge badge-blue">Core</span>
-  if (type === 'Applied')     return <span className="badge badge-amber">Applied</span>
+  if (type === 'Core')          return <span className="badge badge-blue">Core</span>
+  if (type === 'Applied')       return <span className="badge badge-amber">Applied</span>
   return <span className="badge badge-purple">Specialized</span>
 }
 
