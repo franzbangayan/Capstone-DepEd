@@ -66,7 +66,9 @@ const TeachersPage = () => {
         <table className="data-table">
           <thead>
             <tr>
-              <th>Full Name</th>
+              <th>Last Name</th>
+                <th>First Name</th>
+                  <th>Middle Name</th>
               <th>Status</th>
               <th>Max Load</th>
               <th>Specializations</th>

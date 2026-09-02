@@ -1,5 +1,14 @@
 /* ─── Teacher Form Modal ─────────────────────────────────────────────────── */
 
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+.field-row .field {
+  flex: 1;
+  min-width: 0; /* prevents inputs from overflowing the row */
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;

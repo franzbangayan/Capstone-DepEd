@@ -11,22 +11,31 @@ const DashboardPage = () => {
     const [sectionCount, setSectionCount] = useState()
     const [schoolYear, setSchoolYear] = useState()
 
+useEffect(() => {
 
-  useEffect(() => {
-    api.get("/api/teachers/")
-    api.get("/api/sections/")
-    api.get("/api/school-years/")
-      .then((res) => {
-        const schoolYear = res.data[0]
+  const fetchData = async () => {
+    try {
+      const [schoolYears, teachers, sections] = await Promise.all([
+        api.get("/api/school-years/"),
+        api.get("/api/teachers/"),
+        api.get("/api/sections/"),
+      ])
 
-        setTeacherCount(res.data.length)
-        setSectionCount(res.data.length)
-        setSchoolYear(`${schoolYear.year_start}-${schoolYear.year_end}`)
-      })
-      .catch((err) => {
-        console.error(err)
-      })
-  }, [])
+      const schoolYear = schoolYears.data[0]
+
+      setSchoolYear(`${schoolYear.year_start}-${schoolYear.year_end}`)
+      setTeacherCount(teachers.data.length)
+      setSectionCount(sections.data.length)
+
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  fetchData()
+
+}, [])
+
 
 
   return (

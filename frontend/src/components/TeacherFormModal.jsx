@@ -18,7 +18,9 @@ const SPECIALIZATION_OPTIONS = [
 ]
 
 const TeacherFormModal = ({ teacher, onClose }) => {
-  const [name,    setName]    = useState(teacher ? teacher.name : '')
+  const [lastName,   setLastName]   = useState(teacher ? teacher.lastName   : '')
+  const [firstName,  setFirstName]  = useState(teacher ? teacher.firstName  : '')
+  const [middleName, setMiddleName] = useState(teacher ? teacher.middleName : '')
   const [status,  setStatus]  = useState(teacher ? teacher.status : 'Permanent')
   const [maxLoad, setMaxLoad] = useState(teacher ? teacher.maxLoad : 6)
   const [specs,   setSpecs]   = useState(teacher ? teacher.specializations : [])
@@ -39,7 +41,11 @@ const TeacherFormModal = ({ teacher, onClose }) => {
     e.stopPropagation()
   }
 
-  return (
+
+  const HandleSubmit = async =>{
+
+  }
+
     <div className="modal-overlay" onClick={handleOverlayClick}>
       <div className="modal-panel" onClick={handlePanelClick}>
 
@@ -55,15 +61,39 @@ const TeacherFormModal = ({ teacher, onClose }) => {
 
         <div className="modal-body">
 
-          <div className="field">
-            <label className="field-label">Full Name</label>
-            <input
-              className="input"
-              type="text"
-              placeholder="e.g. Maria Luz Santos"
-              value={name}
-              onChange={(e) => { setName(e.target.value) }}
-            />
+          <div className="field-row">
+            <div className="field">
+              <label className="field-label">Last Name</label>
+              <input
+                className="input"
+                type="text"
+                placeholder="e.g. Santos"
+                value={lastName}
+                onChange={(e) => { setLastName(e.target.value) }}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label">First Name</label>
+              <input
+                className="input"
+                type="text"
+                placeholder="e.g. Maria"
+                value={firstName}
+                onChange={(e) => { setFirstName(e.target.value) }}
+              />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Middle Name</label>
+              <input
+                className="input"
+                type="text"
+                placeholder="e.g. Luz"
+                value={middleName}
+                onChange={(e) => { setMiddleName(e.target.value) }}
+              />
+            </div>
           </div>
 
           <div className="field">
@@ -142,7 +172,6 @@ const TeacherFormModal = ({ teacher, onClose }) => {
 
       </div>
     </div>
-  )
 }
 
 export default TeacherFormModal
