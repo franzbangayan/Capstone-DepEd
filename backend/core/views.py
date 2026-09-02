@@ -39,6 +39,14 @@ class SchoolViewSet(viewsets.ModelViewSet):
     queryset = School.objects.all()
     serializer_class = SchoolSerializer
 
+    def get_permissions(self):
+        # Allow the registration page to load school names
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        # Keep create, update, and delete protected
+        return [IsAuthenticated()]
+
 
 class SchoolYearViewSet(viewsets.ModelViewSet):
     queryset = SchoolYear.objects.all()

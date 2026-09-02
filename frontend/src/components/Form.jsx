@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import api from "../api";
 import { useNavigate } from "react-router-dom";
 import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
@@ -12,30 +12,128 @@ function Form({ route, method }) {
     const [error, setError] = useState("");
     const navigate = useNavigate();
 
+    const [school, setSchool] = useState("");
+    const [schools, setSchools] = useState([]);
+    const [schoolsLoading, setSchoolsLoading] = useState(true);
+    const [schoolsError, setSchoolsError] = useState("");
+    const SCHOOLS_API_URL = "/api/schools/";
+
+    
+
     const name = method === "login" ? "Sign In" : "Create Account";
     const buttonText = method === "login" ? "Log In" : "Register";
     const loadingText = method === "login" ? "Signing in…" : "Registering…";
+  
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError("");
 
-        try {
-            const res = await api.post(route, { username, password });
-            if (method === "login") {
-                localStorage.setItem(ACCESS_TOKEN, res.data.access);
-                localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
-                navigate("/");
-            } else {
-                navigate("/login");
-            }
-        } catch (err) {
-            setError(method === "login" ? "Invalid username or password." : "Registration failed. Try a different username.");
-        } finally {
-            setLoading(false);
-        }
+ useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setSchoolsLoading(true);
+      setSchoolsError("");
+
+      const response = await api.get(SCHOOLS_API_URL);
+
+      console.log("Schools API response:", response.data);
+
+      // Supports a direct array or Django REST Framework pagination
+      const schoolList = Array.isArray(response.data)
+        ? response.data
+        : response.data.results ||
+          response.data.schools ||
+          response.data.data ||
+          [];
+
+      if (!Array.isArray(schoolList)) {
+        throw new Error("The schools API did not return a list");
+      }
+
+      // Convert the API response into the format used by the dropdown
+      const formattedSchools = schoolList.map((item, index) => ({
+        id:
+          item.id ??
+          item.pk ??
+          item.school_id ??
+          item.schoolId ??
+          `temporary-${index}`,
+        name:
+          item.name ??
+          item.school_name ??
+          item.schoolName ??
+          "Unnamed school",
+      }));
+
+      setSchools(formattedSchools);
+    } catch (err) {
+      console.error("Failed to load schools:", err);
+      setSchoolsError("Unable to load schools.");
+      setSchools([]);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
+
+       
+      
+
+
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
+
+  try {
+    if (method === "register" && !school) {
+      setError("Please select a school.");
+      setLoading(false);
+      return;
+    }
+
+    const payload = {
+      username,
+      password,
+      ...(method === "register" && {
+        school: Number(school),
+      }),
     };
+
+    const res = await api.post(route, payload);
+
+    if (method === "login") {
+      localStorage.setItem(ACCESS_TOKEN, res.data.access);
+      localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+
+      // This requires the login API to return school_id
+      const loggedInSchoolId =
+        res.data.school_id ||
+        res.data.school?.id ||
+        res.data.user?.school_id ||
+        res.data.user?.school?.id;
+
+      if (loggedInSchoolId) {
+        localStorage.setItem("school_id", String(loggedInSchoolId));
+      }
+
+      navigate("/");
+    } else {
+      navigate("/login");
+    }
+  } catch (err) {
+    setError(
+      method === "login"
+        ? "Invalid username or password."
+        : "Registration failed. Try a different username."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
 
     return (
         <div className="login-bg">
@@ -53,7 +151,7 @@ function Form({ route, method }) {
                                 </svg>
                             </div>
                             <div className="login-app-name">TeachLoad</div>
-                            <div className="login-school">SCHOOL NAME</div>
+                        
                         </div>
 
                         <div className="login-heading">
@@ -67,6 +165,41 @@ function Form({ route, method }) {
                                 <p>{error}</p>
                             </div>
                         )}
+                        
+                         <div className="field">
+                            <label className="field-label" htmlFor="school">
+                                School
+                            </label>
+
+                            <div className="select-wrap">
+                              <select
+                                id="school"
+                                value={school}
+                                onChange={(e) => {
+                                    const selectedSchoolId = e.target.value;
+
+                                    setSchool(selectedSchoolId);
+                                    localStorage.setItem("school_id", selectedSchoolId);
+                                }}
+                                required
+                                >
+                                <option value="">— Select your school —</option>
+
+                                {schools.map((item) => (
+                                    <option key={`school-${item.id}`} value={item.id}>
+                                    {item.name}
+                                    </option>
+                                ))}
+                                </select>
+
+                                    {schoolsError && (
+                                    <p className="field-error" role="alert">
+                                        {schoolsError}
+                                    </p>
+                                    )}
+
+                            </div>
+                        </div>
 
                         <form className="login-form" onSubmit={handleSubmit}>
                             <div className="field">
