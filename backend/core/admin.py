@@ -65,13 +65,13 @@ admin.site.register(Subject)
 class CustomUserAdmin(UserAdmin):
     fieldsets = UserAdmin.fieldsets + (
         ('School Information', {
-            'fields': ('school',),
+            'fields': ('school_id',),
         }),
     )
 
     add_fieldsets = UserAdmin.add_fieldsets + (
         ('School Information', {
-            'fields': ('school',),
+            'fields': ('school_id',),
         }),
     )
 

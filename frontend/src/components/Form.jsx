@@ -16,9 +16,6 @@ function Form({ route, method }) {
     const [schools, setSchools] = useState([]);
     const [schoolsLoading, setSchoolsLoading] = useState(true);
     const [schoolsError, setSchoolsError] = useState("");
-    const SCHOOLS_API_URL = "/api/schools/";
-
-    
 
     const name = method === "login" ? "Sign In" : "Create Account";
     const buttonText = method === "login" ? "Log In" : "Register";
@@ -32,38 +29,15 @@ function Form({ route, method }) {
       setSchoolsLoading(true);
       setSchoolsError("");
 
-      const response = await api.get(SCHOOLS_API_URL);
+      const response = await fetch("http://127.0.0.1:8000/api/schools/");
 
-      console.log("Schools API response:", response.data);
+      const data = await response.json();
 
-      // Supports a direct array or Django REST Framework pagination
-      const schoolList = Array.isArray(response.data)
-        ? response.data
-        : response.data.results ||
-          response.data.schools ||
-          response.data.data ||
-          [];
+      console.log("Schools API response:", data);
 
-      if (!Array.isArray(schoolList)) {
-        throw new Error("The schools API did not return a list");
-      }
+      const schoolList = data;
 
-      // Convert the API response into the format used by the dropdown
-      const formattedSchools = schoolList.map((item, index) => ({
-        id:
-          item.id ??
-          item.pk ??
-          item.school_id ??
-          item.schoolId ??
-          `temporary-${index}`,
-        name:
-          item.name ??
-          item.school_name ??
-          item.schoolName ??
-          "Unnamed school",
-      }));
-
-      setSchools(formattedSchools);
+      setSchools(schoolList);
     } catch (err) {
       console.error("Failed to load schools:", err);
       setSchoolsError("Unable to load schools.");
@@ -75,11 +49,6 @@ function Form({ route, method }) {
 
   fetchData();
 }, []);
-
-
-       
-      
-
 
 
 const handleSubmit = async (e) => {
@@ -94,15 +63,20 @@ const handleSubmit = async (e) => {
       return;
     }
 
+    console.log("School_id", school);
+
     const payload = {
       username,
       password,
-      ...(method === "register" && {
-        school: Number(school),
+      ...(method === 'register' && {
+        school_id: Number(school),
       }),
     };
 
+    console.log("Payload: ", payload);
+
     const res = await api.post(route, payload);
+    console.log("Response: ", res.data);
 
     if (method === "login") {
       localStorage.setItem(ACCESS_TOKEN, res.data.access);
@@ -166,42 +140,47 @@ const handleSubmit = async (e) => {
                             </div>
                         )}
                         
-                         <div className="field">
-                            <label className="field-label" htmlFor="school">
-                                School
-                            </label>
-
-                            <div className="select-wrap">
-                              <select
-                                id="school"
-                                value={school}
-                                onChange={(e) => {
-                                    const selectedSchoolId = e.target.value;
-
-                                    setSchool(selectedSchoolId);
-                                    localStorage.setItem("school_id", selectedSchoolId);
-                                }}
-                                required
-                                >
-                                <option value="">— Select your school —</option>
-
-                                {schools.map((item) => (
-                                    <option key={`school-${item.id}`} value={item.id}>
-                                    {item.name}
-                                    </option>
-                                ))}
-                                </select>
-
-                                    {schoolsError && (
-                                    <p className="field-error" role="alert">
-                                        {schoolsError}
-                                    </p>
-                                    )}
-
-                            </div>
-                        </div>
+                        
 
                         <form className="login-form" onSubmit={handleSubmit}>
+                            {method === "register" && (
+                              <div className="field">
+                                <label className="field-label" htmlFor="school">
+                                    School
+                                </label>
+
+                                <div className="select-wrap">
+                                  <select
+                                    id="school"
+                                    value={school}
+                                    onChange={(e) => {
+                                        const selectedSchoolId = e.target.value;
+
+                                        setSchool(selectedSchoolId);
+                                        localStorage.setItem("school_id", selectedSchoolId);
+                                    }}
+                                    required
+                                    >
+                                    <option value="">— Select your school —</option>
+
+                                    {schools.map((school) => (
+                                        <option key={`school-${school.school_id}`} value={school.school_id}>
+                                            {school.school_name}
+                                        </option>
+                                    ))}
+                                    </select>
+
+                                        {schoolsError && (
+                                        <p className="field-error" role="alert">
+                                            {schoolsError}
+                                        </p>
+                                        )}
+
+                                </div>
+                              </div>
+                            )}
+                            
+
                             <div className="field">
                                 <label className="field-label">Username</label>
                                 <input
