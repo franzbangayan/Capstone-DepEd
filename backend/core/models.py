@@ -109,8 +109,8 @@ class Subject(models.Model):
 
 
 class User(AbstractUser):
-    school = models.ForeignKey(
-        School, on_delete=models.CASCADE, db_column='school_id', blank=True, null=True
+    school_id = models.ForeignKey(
+        School, on_delete=models.CASCADE, db_column='school_id', blank=True, null=True, verbose_name="School"
     )
 
     class Meta:
@@ -218,7 +218,7 @@ class TeacherSpecialization(models.Model):
 
     class Meta:
         db_table = 'TEACHER_SPECIALIZATION'
-        unique_together = ('teacher', 'subject', 'date_started')
+        unique_together = ('teacher', 'subject')
 
     def __str__(self):
         return f"{self.teacher} - {self.subject.subject_name}"
