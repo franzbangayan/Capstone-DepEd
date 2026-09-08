@@ -114,6 +114,9 @@ class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
         fields = '__all__'
+        read_only_fields = ['school']   # backend sets this from the logged-in user
+ 
+ 
 
 
 class SubjectOfferingSerializer(serializers.ModelSerializer):

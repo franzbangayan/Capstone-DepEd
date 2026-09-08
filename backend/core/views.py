@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate
 from rest_framework import generics, viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import (
@@ -84,8 +84,20 @@ class EmploymentStatusViewSet(viewsets.ModelViewSet):
 
 
 class TeacherViewSet(viewsets.ModelViewSet):
-    queryset = Teacher.objects.all()
+    queryset = Teacher.objects.all()   # kept for router introspection only
     serializer_class = TeacherSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Every user is locked to their own school's teachers, regardless
+        # of what the frontend sends.
+        return Teacher.objects.filter(school_id=self.request.user.school_id_id)
+
+    def perform_create(self, serializer):
+        serializer.save(school_id=self.request.user.school_id_id)
+
+    def perform_update(self, serializer):
+        serializer.save(school_id=self.request.user.school_id_id)
 
 
 class TeacherLoadLimitViewSet(viewsets.ModelViewSet):
@@ -99,8 +111,19 @@ class TeacherSpecializationViewSet(viewsets.ModelViewSet):
 
 
 class SectionViewSet(viewsets.ModelViewSet):
-    queryset = Section.objects.all()
+    queryset = Section.objects.all()   # kept for router introspection only
     serializer_class = SectionSerializer
+    permission_classes = [IsAuthenticated]
+ 
+    def get_queryset(self):
+        return Section.objects.filter(school_id=self.request.user.school_id_id)
+ 
+    def perform_create(self, serializer):
+        serializer.save(school_id=self.request.user.school_id_id)
+ 
+    def perform_update(self, serializer):
+        serializer.save(school_id=self.request.user.school_id_id)
+ 
 
 
 class SubjectOfferingViewSet(viewsets.ModelViewSet):
@@ -150,7 +173,7 @@ class LoginView(APIView):
             'refresh': str(refresh),
             'user_id': user.id,
             'username': user.username,
-            'school_id': user.school_id,
+            'school_id': user.school_id_id,
         }, status=status.HTTP_200_OK)
 
 

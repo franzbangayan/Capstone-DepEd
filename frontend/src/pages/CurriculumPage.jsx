@@ -302,72 +302,168 @@ const SubjectsTab = () => {
   
   /* ── Tab: Sections ── */
 
-  const SectionsTab = () => {
-    const [showModal, setShowModal] = useState(false)
+/* ── Tab: Sections ── */
 
-    return (
-      <div>
-        <div className="tab-header">
-          <div className="tab-header-text">
-            <h3>Sections</h3>
-            <p>Registered class sections with adviser assignments</p>
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true) }}>
-            <IconPlus /> Add Section
-          </button>
+const sectionGradeBadge = (group) => {
+  if (group === 'Elementary')          return 'badge badge-sky'
+  if (group === 'Junior High School')  return 'badge badge-indigo'
+  return 'badge badge-violet'
+}
+
+const gradeGroupFromName = (name) => {
+  if (['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'].includes(name)) return 'Elementary'
+  if (['Grade 7','Grade 8','Grade 9','Grade 10'].includes(name)) return 'Junior High School'
+  return 'Senior High School'
+}
+
+const SectionsTab = () => {
+  const [sections,     setSections]     = useState([])
+  const [gradeLevels,  setGradeLevels]  = useState([])
+  const [strands,      setStrands]      = useState([])
+  const [schoolYears,  setSchoolYears]  = useState([])
+  const [teachers,     setTeachers]     = useState([])
+  const [showModal,    setShowModal]    = useState(false)
+  const [editingSection, setEditingSection] = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState('')
+
+  const listData = (response) => (
+    Array.isArray(response.data) ? response.data : response.data.results || []
+  )
+
+  const loadSections = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const [sectionRes, gradeRes, strandRes, syRes, teacherRes] = await Promise.all([
+        api.get('/api/sections/'),
+        api.get('/api/grade-levels/'),
+        api.get('/api/strands/'),
+        api.get('/api/school-years/'),
+        api.get('/api/teachers/'),
+      ])
+      setSections(listData(sectionRes))
+      setGradeLevels(listData(gradeRes))
+      setStrands(listData(strandRes))
+      setSchoolYears(listData(syRes))
+      setTeachers(listData(teacherRes))
+    } catch (loadError) {
+      setError(loadError?.response?.data?.detail || 'Unable to load sections from the backend.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSections()
+  }, [loadSections])
+
+  const gradeNameById = Object.fromEntries(gradeLevels.map((g) => [g.grade_level_id, g.grade_name]))
+  const strandNameById = Object.fromEntries(strands.map((s) => [s.strand_id, s.strand_name]))
+  const schoolYearLabelById = Object.fromEntries(
+    schoolYears.map((sy) => [sy.school_year_id, `${sy.year_start}–${sy.year_end}`])
+  )
+  const teacherNameById = Object.fromEntries(
+    teachers.map((t) => [t.teacher_id, `${t.last_name}, ${t.first_name}`])
+  )
+
+  const openAdd = () => {
+    setEditingSection(null)
+    setShowModal(true)
+  }
+
+  const openEdit = (section) => {
+    setEditingSection(section)
+    setShowModal(true)
+  }
+
+  const deleteSection = async (section) => {
+    if (!window.confirm(`Delete section ${section.section_name}?`)) return
+
+    try {
+      await api.delete(`/api/sections/${section.section_id}/`)
+      await loadSections()
+    } catch (deleteError) {
+      setError(deleteError?.response?.data?.detail || 'Unable to delete section.')
+    }
+  }
+
+  return (
+    <div>
+      <div className="tab-header">
+        <div className="tab-header-text">
+          <h3>Sections</h3>
+          <p>Registered class sections with adviser assignments</p>
         </div>
+        <button className="btn btn-primary btn-sm" onClick={openAdd}>
+          <IconPlus /> Add Section
+        </button>
+      </div>
 
-        {showModal && (
-          <AddSectionModal
-            onClose={() => { setShowModal(false) }}
-            onSave={() => { setShowModal(false) }}
-          />
-        )}
-  
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
+      {error && <div className="form-error">{error}</div>}
+
+      {showModal && (
+        <AddSectionModal
+          section={editingSection}
+          onClose={() => {
+            setShowModal(false)
+            setEditingSection(null)
+          }}
+          onSaved={loadSections}
+        />
+      )}
+
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Section Name</th>
+              <th>Grade Level</th>
+              <th>Strand</th>
+              <th>Adviser</th>
+              <th>School Year</th>
+              <th className="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>Section Name</th>
-                <th>Grade Level</th>
-                <th>Strand</th>
-                <th>Adviser</th>
-                <th>School Year</th>
-                <th className="right">Actions</th>
+                <td colSpan={6} className="table-empty-cell">Loading sections…</td>
               </tr>
-            </thead>
-            <tbody>
-              {SAMPLE_SECTIONS.map((s, i) => {
+            ) : sections.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="table-empty-cell">No sections yet.</td>
+              </tr>
+            ) : (
+              sections.map((s) => {
+                const gradeName = gradeNameById[s.grade_level] || '—'
+                const group = gradeGroupFromName(gradeName)
                 return (
-                  <tr key={i}>
-                    <td className="td-name">{s.name}</td>
+                  <tr key={s.section_id}>
+                    <td className="td-name">{s.section_name}</td>
                     <td>
-                      <span className={sectionGradeBadge(s.group)}>{s.grade}</span>
+                      <span className={sectionGradeBadge(group)}>{gradeName}</span>
                     </td>
-                    <td className="td-muted">{s.strand}</td>
-                    <td className="td-muted">{s.adviser}</td>
-                    <td className="td-muted">{s.sy}</td>
+                    <td className="td-muted">{strandNameById[s.strand] || '—'}</td>
+                    <td className="td-muted">{teacherNameById[s.adviser_teacher] || '—'}</td>
+                    <td className="td-muted">{schoolYearLabelById[s.school_year] || '—'}</td>
                     <td>
                       <div className="td-actions">
-                        <button className="btn-icon edit"><IconEdit /></button>
-                        <button className="btn-icon del"><IconTrash /></button>
+                        <button className="btn-icon edit" onClick={() => openEdit(s)}><IconEdit /></button>
+                        <button className="btn-icon del" onClick={() => deleteSection(s)}><IconTrash /></button>
                       </div>
                     </td>
                   </tr>
                 )
-              })}
-            </tbody>
-          </table>
-        </div>
+              })
+            )}
+          </tbody>
+        </table>
       </div>
-    )
-  }
-  
-  const SAMPLE_SCHOOL_YEARS = [
-    { start: 2024, end: 2025, active: true },
-    { start: 2023, end: 2024, active: false },
-    { start: 2022, end: 2023, active: false },
-  ]
+    </div>
+  )
+}
   
   /* ── Tab: School Year ── */
 
