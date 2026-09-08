@@ -1,11 +1,12 @@
 import '../styles/CurriculumPage.css'
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevronDown } from '../components/Icons'
 import AddSubjectModal from '../components/AddSubjectModal'
 import AddSectionModal from '../components/AddSectionModal'
 import AddSchoolYearModal from '../components/AddSchoolYearModal'
+import api from '../api'
   
-// no backend
+
 
   const GRADE_LEVELS = [
     { label: 'Kindergarten', group: 'Elementary' },
@@ -155,268 +156,149 @@ import AddSchoolYearModal from '../components/AddSchoolYearModal'
       </div>
     )
   }
+
   
-  const SUBJECT_REGISTRY = [
-    { name: 'Filipino',             type: 'Core' },
-    { name: 'English',              type: 'Core' },
-    { name: 'Mathematics',          type: 'Core' },
-    { name: 'Science',              type: 'Core' },
-    { name: 'Araling Panlipunan',   type: 'Core' },
-    { name: 'MAPEH',                type: 'Applied' },
-    { name: 'TLE',                  type: 'Applied' },
-    { name: 'General Biology 1',    type: 'Specialized' },
-    { name: 'Business Mathematics', type: 'Specialized' },
-    { name: 'Creative Writing',     type: 'Specialized' },
-  ]
   
-  const subjectTypeBadge = (type) => {
-    if (type === 'Core')        return <span className="badge badge-blue">Core</span>
-    if (type === 'Applied')     return <span className="badge badge-amber">Applied</span>
-    return <span className="badge badge-purple">Specialized</span>
-  }
   
   /* ── Tab: Subjects ── */
   
-  const SubjectsTab = () => {
-    const [search,    setSearch]    = useState('')
-    const [showModal, setShowModal] = useState(false)
+/* ── Tab: Subjects ── */
 
-    const filtered = SUBJECT_REGISTRY.filter((s) => {
-      return s.name.toLowerCase().includes(search.toLowerCase())
-    })
+const subjectTypeBadge = (type) => {
+  if (type === 'Core')        return <span className="badge badge-blue">Core</span>
+  if (type === 'Applied')     return <span className="badge badge-amber">Applied</span>
+  return <span className="badge badge-purple">Specialized</span>
+}
 
-    return (
-      <div>
-        <div className="tab-header">
-          <div className="tab-header-text">
-            <h3>Subject Registry</h3>
-            <p>Core, Applied, and Specialized subjects — each subject appears once</p>
-          </div>
-          <div className="row">
-            <div className="search-wrap">
-              <IconSearch />
-              <input
-                className="input"
-                type="text"
-                placeholder="Search subjects…"
-                value={search}
-                onChange={(e) => { setSearch(e.target.value) }}
-              />
-            </div>
-            <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true) }}>
-              <IconPlus /> Add Subject
-            </button>
-          </div>
+const SubjectsTab = () => {
+  const [subjects,       setSubjects]       = useState([])
+  const [search,         setSearch]         = useState('')
+  const [showModal,      setShowModal]      = useState(false)
+  const [editingSubject, setEditingSubject] = useState(null)
+  const [loading,        setLoading]        = useState(true)
+  const [error,          setError]          = useState('')
+
+  const loadSubjects = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await api.get('/api/subjects/')
+      const data = Array.isArray(response.data) ? response.data : response.data.results || []
+      setSubjects(data)
+    } catch (loadError) {
+      setError(loadError?.response?.data?.detail || 'Unable to load subjects from the backend.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSubjects()
+  }, [loadSubjects])
+
+  const filtered = subjects.filter((s) => {
+    return s.subject_name.toLowerCase().includes(search.toLowerCase())
+  })
+
+  const openAdd = () => {
+    setEditingSubject(null)
+    setShowModal(true)
+  }
+
+  const openEdit = (subject) => {
+    setEditingSubject(subject)
+    setShowModal(true)
+  }
+
+  const deleteSubject = async (subject) => {
+    if (!window.confirm(`Delete ${subject.subject_name}?`)) return
+
+    try {
+      await api.delete(`/api/subjects/${subject.subject_id}/`)
+      await loadSubjects()
+    } catch (deleteError) {
+      setError(deleteError?.response?.data?.detail || 'Unable to delete subject.')
+    }
+  }
+
+  return (
+    <div>
+      <div className="tab-header">
+        <div className="tab-header-text">
+          <h3>Subject Registry</h3>
+          <p>Core, Applied, and Specialized subjects — each subject appears once</p>
         </div>
-
-        {showModal && (
-          <AddSubjectModal
-            onClose={() => { setShowModal(false) }}
-            onSave={() => { setShowModal(false) }}
-          />
-        )}
-  
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Subject Name</th>
-                <th>Type</th>
-                <th className="right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={3} className="table-empty-cell">No subjects match your search.</td>
-                </tr>
-              )}
-              {filtered.map((s, i) => {
-                return (
-                  <tr key={i}>
-                    <td className="td-name">{s.name}</td>
-                    <td>{subjectTypeBadge(s.type)}</td>
-                    <td>
-                      <div className="td-actions">
-                        <button className="btn-icon edit"><IconEdit /></button>
-                        <button className="btn-icon del"><IconTrash /></button>
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    )
-  }
-  
-  /* ── Tab: Subject Offerings ── */
-  
-  const SHS_GRADE_LEVELS = ['Grade 11', 'Grade 12']
-  
-  const ALL_GRADE_LEVELS = [
-    'Kindergarten',
-    'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6',
-    'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10',
-    'Grade 11', 'Grade 12',
-  ]
-  
-  const SHS_STRANDS = ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL', 'Sports', 'Arts and Design']
-  
-  const SAMPLE_OFFERINGS = [
-    { subject: 'Filipino',             grade: 'Grade 7',  group: 'Junior High School', strand: '—', hours: 4 },
-    { subject: 'Mathematics',          grade: 'Grade 7',  group: 'Junior High School', strand: '—', hours: 4 },
-    { subject: 'General Biology 1',    grade: 'Grade 11', group: 'Senior High School', strand: 'STEM', hours: 5 },
-    { subject: 'Business Mathematics', grade: 'Grade 11', group: 'Senior High School', strand: 'ABM',  hours: 5 },
-    { subject: 'Creative Writing',     grade: 'Grade 12', group: 'Senior High School', strand: 'HUMSS', hours: 5 },
-  ]
-  
-  const offeringGradeBadge = (group) => {
-    if (group === 'Elementary')         return 'badge badge-sky'
-    if (group === 'Junior High School') return 'badge badge-indigo'
-    return 'badge badge-violet'
-  }
-  
-  const gradeGroup = (grade) => {
-    if (['Kindergarten','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5','Grade 6'].includes(grade)) return 'Elementary'
-    if (['Grade 7','Grade 8','Grade 9','Grade 10'].includes(grade)) return 'Junior High School'
-    return 'Senior High School'
-  }
-  
-  const SubjectOfferingsTab = () => {
-    const [showForm,    setShowForm]    = useState(false)
-    const [formSubject, setFormSubject] = useState(SUBJECT_REGISTRY[0].name)
-    const [formGrade,   setFormGrade]   = useState('Grade 7')
-    const [formStrand,  setFormStrand]  = useState('STEM')
-    const [formHours,   setFormHours]   = useState(4)
-  
-    const isSHS = SHS_GRADE_LEVELS.includes(formGrade)
-  
-    return (
-      <div>
-        <div className="tab-header">
-          <div className="tab-header-text">
-            <h3>Subject Offerings</h3>
-            <p>Link subjects to grade levels and strands, with required weekly hours</p>
+        <div className="row">
+          <div className="search-wrap">
+            <IconSearch />
+            <input
+              className="input"
+              type="text"
+              placeholder="Search subjects…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value) }}
+            />
           </div>
-          <button className="btn btn-primary btn-sm" onClick={() => { setShowForm(!showForm) }}>
-            <IconPlus /> Add Offering
+          <button className="btn btn-primary btn-sm" onClick={openAdd}>
+            <IconPlus /> Add Subject
           </button>
         </div>
-  
-        {showForm && (
-          <div className="offering-form card card-body">
-            <div className="offering-form-title">New Subject Offering</div>
-            <div className="offering-form-fields">
-              <div className="field">
-                <label className="field-label">Subject</label>
-                <div className="select-wrap">
-                  <select value={formSubject} onChange={(e) => { setFormSubject(e.target.value) }}>
-                    {SUBJECT_REGISTRY.map((s) => { return <option key={s.name}>{s.name}</option> })}
-                  </select>
-                  <IconChevronDown />
-                </div>
-              </div>
-  
-              <div className="field">
-                <label className="field-label">Grade Level</label>
-                <div className="select-wrap">
-                  <select value={formGrade} onChange={(e) => { setFormGrade(e.target.value) }}>
-                    {ALL_GRADE_LEVELS.map((g) => { return <option key={g}>{g}</option> })}
-                  </select>
-                  <IconChevronDown />
-                </div>
-              </div>
-  
-              {isSHS && (
-                <div className="field">
-                  <label className="field-label">Strand</label>
-                  <div className="select-wrap">
-                    <select value={formStrand} onChange={(e) => { setFormStrand(e.target.value) }}>
-                      {SHS_STRANDS.map((s) => { return <option key={s}>{s}</option> })}
-                    </select>
-                    <IconChevronDown />
-                  </div>
-                </div>
-              )}
-  
-              <div className="field">
-                <label className="field-label">Hours per Week</label>
-                <input
-                  className="input"
-                  type="number"
-                  min={1}
-                  max={10}
-                  value={formHours}
-                  onChange={(e) => { setFormHours(Number(e.target.value)) }}
-                />
-              </div>
-            </div>
-            <div className="offering-form-footer">
-              <button className="btn btn-outline btn-sm" onClick={() => { setShowForm(false) }}>
-                Cancel
-              </button>
-              <button className="btn btn-primary btn-sm" onClick={() => { setShowForm(false) }}>
-                Save Offering
-              </button>
-            </div>
-          </div>
-        )}
-  
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
+      </div>
+
+      {error && <div className="form-error">{error}</div>}
+
+      {showModal && (
+        <AddSubjectModal
+          subject={editingSubject}
+          onClose={() => {
+            setShowModal(false)
+            setEditingSubject(null)
+          }}
+          onSaved={loadSubjects}
+        />
+      )}
+
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Subject Name</th>
+              <th>Type</th>
+              <th className="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>Subject</th>
-                <th>Grade Level</th>
-                <th>Strand</th>
-                <th>Hours / Week</th>
-                <th className="right">Actions</th>
+                <td colSpan={3} className="table-empty-cell">Loading subjects…</td>
               </tr>
-            </thead>
-            <tbody>
-              {SAMPLE_OFFERINGS.map((o, i) => {
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="table-empty-cell">No subjects match your search.</td>
+              </tr>
+            ) : (
+              filtered.map((s) => {
                 return (
-                  <tr key={i}>
-                    <td className="td-name">{o.subject}</td>
-                    <td>
-                      <span className={offeringGradeBadge(o.group)}>{o.grade}</span>
-                    </td>
-                    <td className="td-muted">{o.strand}</td>
-                    <td className="td-mono">{o.hours}h</td>
+                  <tr key={s.subject_id}>
+                    <td className="td-name">{s.subject_name}</td>
+                    <td>{subjectTypeBadge(s.subject_type)}</td>
                     <td>
                       <div className="td-actions">
-                        <button className="btn-icon edit"><IconEdit /></button>
-                        <button className="btn-icon del"><IconTrash /></button>
+                        <button className="btn-icon edit" onClick={() => openEdit(s)}><IconEdit /></button>
+                        <button className="btn-icon del" onClick={() => deleteSubject(s)}><IconTrash /></button>
                       </div>
                     </td>
                   </tr>
                 )
-              })}
-            </tbody>
-          </table>
-        </div>
+              })
+            )}
+          </tbody>
+        </table>
       </div>
-    )
-  }
-  
-  const SAMPLE_SECTIONS = [
-    { name: 'Sampaguita', grade: 'Grade 1',  group: 'Elementary',          strand: '—', adviser: '—', sy: '2024–2025' },
-    { name: 'Rosal',      grade: 'Grade 2',  group: 'Elementary',          strand: '—', adviser: '—', sy: '2024–2025' },
-    { name: 'Gumamela',   grade: 'Grade 6',  group: 'Elementary',          strand: '—', adviser: '—', sy: '2024–2025' },
-    { name: 'Aguila',     grade: 'Grade 7',  group: 'Junior High School',  strand: '—', adviser: '—', sy: '2024–2025' },
-    { name: 'Lawin',      grade: 'Grade 8',  group: 'Junior High School',  strand: '—', adviser: '—', sy: '2024–2025' },
-    { name: 'Narra',      grade: 'Grade 11', group: 'Senior High School',  strand: 'STEM', adviser: '—', sy: '2024–2025' },
-    { name: 'Molave',     grade: 'Grade 12', group: 'Senior High School',  strand: 'ABM',  adviser: '—', sy: '2024–2025' },
-  ]
-  
-  const sectionGradeBadge = (group) => {
-    if (group === 'Elementary')          return 'badge badge-sky'
-    if (group === 'Junior High School')  return 'badge badge-indigo'
-    return 'badge badge-violet'
-  }
+    </div>
+  )
+}
   
   /* ── Tab: Sections ── */
 

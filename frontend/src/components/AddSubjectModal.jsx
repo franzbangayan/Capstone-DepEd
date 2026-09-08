@@ -1,19 +1,62 @@
 import '../styles/AddSubjectModal.css'
 import { useState } from 'react'
 import { IconX, IconChevronDown } from '../components/Icons'
+import api from '../api'
 
-const AddSubjectModal = ({ onClose, onSave }) => {
-  const [name, setName] = useState('')
-  const [type, setType] = useState('Core')
+const getErrorMessage = (error) => {
+  const data = error?.response?.data
+
+  if (typeof data === 'string') return data
+  if (data?.detail) return data.detail
+  if (data && typeof data === 'object') {
+    return Object.entries(data)
+      .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
+      .join(' | ')
+  }
+
+  return error?.message || 'Unable to save subject.'
+}
+
+// Pass `subject` (the row object from the backend) to open this in edit
+// mode. Leave it undefined/null to add a new subject.
+const AddSubjectModal = ({ subject, onClose, onSaved }) => {
+  const [name, setName] = useState(subject?.subject_name || '')
+  const [type, setType] = useState(subject?.subject_type || 'Core')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
 
   const handleOverlayClick = () => { onClose() }
-  const handlePanelClick   = (e) => { e.stopPropagation() }
+  const handlePanelClick = (e) => { e.stopPropagation() }
 
-  const handleSave = () => {
-    if (name.trim()) {
-      onSave && onSave({ name: name.trim(), type })
+  const handleSave = async () => {
+    setError('')
+
+    if (!name.trim()) {
+      setError('Subject name is required.')
+      return
     }
-    onClose()
+
+    setSaving(true)
+
+    const payload = {
+      subject_name: name.trim(),
+      subject_type: type,
+    }
+
+    try {
+      if (subject) {
+        await api.put(`/api/subjects/${subject.subject_id}/`, payload)
+      } else {
+        await api.post('/api/subjects/', payload)
+      }
+
+      onSaved?.()
+      onClose()
+    } catch (saveError) {
+      setError(getErrorMessage(saveError))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -22,8 +65,8 @@ const AddSubjectModal = ({ onClose, onSave }) => {
 
         <div className="modal-header">
           <div className="modal-header-text">
-            <h2>Add Subject</h2>
-            <p>Add a new subject to the registry</p>
+            <h2>{subject ? 'Edit Subject' : 'Add Subject'}</h2>
+            <p>{subject ? 'Update this subject' : 'Add a new subject to the registry'}</p>
           </div>
           <button className="modal-close" onClick={onClose}>
             <IconX />
@@ -31,6 +74,8 @@ const AddSubjectModal = ({ onClose, onSave }) => {
         </div>
 
         <div className="modal-body">
+          {error && <div className="form-error">{error}</div>}
+
           <div className="field">
             <label className="field-label">Subject Name</label>
             <input
@@ -57,11 +102,11 @@ const AddSubjectModal = ({ onClose, onSave }) => {
         </div>
 
         <div className="modal-footer">
-          <button className="btn btn-outline btn-full" onClick={onClose}>
+          <button className="btn btn-outline btn-full" onClick={onClose} disabled={saving}>
             Cancel
           </button>
-          <button className="btn btn-primary btn-full" onClick={handleSave}>
-            Add Subject
+          <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving…' : subject ? 'Save Changes' : 'Add Subject'}
           </button>
         </div>
 
