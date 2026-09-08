@@ -33,7 +33,7 @@ function Form({ route, method }) {
 
       const data = await response.json();
 
-      console.log("Schools API response:", data);
+      // console.log("Schools API response:", data);
 
       const schoolList = data;
 
@@ -63,7 +63,7 @@ const handleSubmit = async (e) => {
       return;
     }
 
-    console.log("School_id", school);
+    // console.log("School_id", school);
 
     const payload = {
       username,
@@ -73,7 +73,7 @@ const handleSubmit = async (e) => {
       }),
     };
 
-    console.log("Payload: ", payload);
+    // console.log("Payload: ", payload);
 
     const res = await api.post(route, payload);
     console.log("Response: ", res.data);
@@ -97,11 +97,13 @@ const handleSubmit = async (e) => {
     } else {
       navigate("/login");
     }
-  } catch (err) {
+  } catch (error) {
+    // console.error("Error:", error.response?.data.username?.[0]);
+    // console.error("Error during form submission:", error.response?.data.password);
     setError(
       method === "login"
         ? "Invalid username or password."
-        : "Registration failed. Try a different username."
+        : error.response?.data.username?.[0] || error.response?.data.password?.[0] || "Registration failed. Please try again."
     );
   } finally {
     setLoading(false);
@@ -189,6 +191,7 @@ const handleSubmit = async (e) => {
                                     placeholder="Enter username"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
+                                    required
                                 />
                             </div>
                             <div className="field">
@@ -199,6 +202,7 @@ const handleSubmit = async (e) => {
                                     placeholder="Enter password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
+                                    required
                                 />
                             </div>
                             <button className="login-submit" type="submit" disabled={loading}>
