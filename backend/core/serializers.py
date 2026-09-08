@@ -44,6 +44,19 @@ class SchoolYearSerializer(serializers.ModelSerializer):
         model = SchoolYear
         fields = '__all__'
 
+    def create(self, validated_data):
+        # Enforce "only one active school year at a time" per the model's
+        # documented convention. If this new record is being marked
+        # active, deactivate every other one first.
+        if validated_data.get('is_active'):
+            SchoolYear.objects.filter(is_active=True).update(is_active=False)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        if validated_data.get('is_active'):
+            SchoolYear.objects.filter(is_active=True).exclude(pk=instance.pk).update(is_active=False)
+        return super().update(instance, validated_data)
+
 
 class TrackSerializer(serializers.ModelSerializer):
     class Meta:

@@ -371,48 +371,111 @@ const SubjectsTab = () => {
   
   /* ── Tab: School Year ── */
 
-  const SchoolYearTab = () => {
-    const [showModal, setShowModal] = useState(false)
+  /* ── Tab: School Year ── */
 
-    return (
-      <div>
-        <div className="tab-header">
-          <div className="tab-header-text">
-            <h3>School Year Configuration</h3>
-            <p>Manage academic year records. Only one school year can be active at a time.</p>
-          </div>
-          <button className="btn btn-primary btn-sm" onClick={() => { setShowModal(true) }}>
-            <IconPlus /> Add School Year
-          </button>
+const SchoolYearTab = () => {
+  const [schoolYears,     setSchoolYears]     = useState([])
+  const [showModal,       setShowModal]       = useState(false)
+  const [editingYear,     setEditingYear]     = useState(null)
+  const [loading,         setLoading]         = useState(true)
+  const [error,           setError]           = useState('')
+
+  const loadSchoolYears = useCallback(async () => {
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await api.get('/api/school-years/')
+      const data = Array.isArray(response.data) ? response.data : response.data.results || []
+      // Most recent year first
+      data.sort((a, b) => b.year_start - a.year_start)
+      setSchoolYears(data)
+    } catch (loadError) {
+      setError(loadError?.response?.data?.detail || 'Unable to load school years from the backend.')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadSchoolYears()
+  }, [loadSchoolYears])
+
+  const openAdd = () => {
+    setEditingYear(null)
+    setShowModal(true)
+  }
+
+  const openEdit = (sy) => {
+    setEditingYear(sy)
+    setShowModal(true)
+  }
+
+  const deleteSchoolYear = async (sy) => {
+    if (!window.confirm(`Delete S.Y. ${sy.year_start}–${sy.year_end}?`)) return
+
+    try {
+      await api.delete(`/api/school-years/${sy.school_year_id}/`)
+      await loadSchoolYears()
+    } catch (deleteError) {
+      setError(deleteError?.response?.data?.detail || 'Unable to delete school year.')
+    }
+  }
+
+  return (
+    <div>
+      <div className="tab-header">
+        <div className="tab-header-text">
+          <h3>School Year Configuration</h3>
+          <p>Manage academic year records. Only one school year can be active at a time.</p>
         </div>
+        <button className="btn btn-primary btn-sm" onClick={openAdd}>
+          <IconPlus /> Add School Year
+        </button>
+      </div>
 
-        {showModal && (
-          <AddSchoolYearModal
-            onClose={() => { setShowModal(false) }}
-            onSave={() => { setShowModal(false) }}
-          />
-        )}
-  
-        <div className="table-wrap">
-          <table className="data-table">
-            <thead>
+      {error && <div className="form-error">{error}</div>}
+
+      {showModal && (
+        <AddSchoolYearModal
+          schoolYear={editingYear}
+          onClose={() => {
+            setShowModal(false)
+            setEditingYear(null)
+          }}
+          onSaved={loadSchoolYears}
+        />
+      )}
+
+      <div className="table-wrap">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Year Start</th>
+              <th>Year End</th>
+              <th>Status</th>
+              <th className="right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>Year Start</th>
-                <th>Year End</th>
-                <th>Status</th>
-                <th className="right">Actions</th>
+                <td colSpan={4} className="table-empty-cell">Loading school years…</td>
               </tr>
-            </thead>
-            <tbody>
-              {SAMPLE_SCHOOL_YEARS.map((sy, i) => {
+            ) : schoolYears.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="table-empty-cell">No school years yet.</td>
+              </tr>
+            ) : (
+              schoolYears.map((sy) => {
                 return (
-                  <tr key={i}>
-                    <td className="td-name">{sy.start}</td>
-                    <td>{sy.end}</td>
+                  <tr key={sy.school_year_id}>
+                    <td className="td-name">{sy.year_start}</td>
+                    <td>{sy.year_end}</td>
                     <td>
-                      {sy.active ? (
+                      {sy.is_active ? (
                         <span className="badge-active badge">
-                          <span className="badge-active-dot" /> Active (most recent)
+                          <span className="badge-active-dot" /> Active
                         </span>
                       ) : (
                         <span className="badge-archived badge">
@@ -422,19 +485,20 @@ const SubjectsTab = () => {
                     </td>
                     <td>
                       <div className="td-actions">
-                        <button className="btn-icon edit"><IconEdit /></button>
-                        <button className="btn-icon del"><IconTrash /></button>
+                        <button className="btn-icon edit" onClick={() => openEdit(sy)}><IconEdit /></button>
+                        <button className="btn-icon del" onClick={() => deleteSchoolYear(sy)}><IconTrash /></button>
                       </div>
                     </td>
                   </tr>
                 )
-              })}
-            </tbody>
-          </table>
-        </div>
+              })
+            )}
+          </tbody>
+        </table>
       </div>
-    )
-  }
+    </div>
+  )
+}
   
   /* ── Main Curriculum Page ── */
   
