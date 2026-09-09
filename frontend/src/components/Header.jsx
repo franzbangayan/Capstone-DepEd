@@ -32,7 +32,8 @@ const Header = () => {
         }
         
         const schoolYearResponse = await api.get("/api/school-years/");
-        const schoolYearData = schoolYearResponse.data[0] || null;
+        const activeSchoolYear = schoolYearResponse.data.find(year => year.is_active);
+        const schoolYearData = activeSchoolYear || null;
         setSchoolYear(schoolYearData ? `${schoolYearData.year_start}-${schoolYearData.year_end}` : "S.Y. 2024–2025");
 
       } catch (err) {
