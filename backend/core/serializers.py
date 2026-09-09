@@ -99,11 +99,12 @@ class EmploymentStatusSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+ 
 class TeacherSerializer(serializers.ModelSerializer):
     class Meta:
         model = Teacher
         fields = '__all__'
-
+        read_only_fields = ['school']   
 
 class TeacherLoadLimitSerializer(serializers.ModelSerializer):
     """

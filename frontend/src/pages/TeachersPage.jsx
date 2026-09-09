@@ -100,7 +100,7 @@ const TeachersPage = () => {
   }
 
   const deleteTeacher = async (teacher) => {
-    if (!window.confirm(`Delete ${teacher.first_name} ${teacher.last_name}?`)) return
+    if (!window.confirm(`Delete ${teacher.first_name} ${teacher.last_name}? This cannot be undone.`)) return
 
     try {
       await api.delete(`/api/teachers/${teacher.teacher_id}/`)
@@ -178,7 +178,6 @@ const TeachersPage = () => {
           teacher={editingTeacher}
           subjects={subjects}
           employmentStatuses={employmentStatuses}
-          schoolId={localStorage.getItem('school_id') || import.meta.env.VITE_SCHOOL_ID}
           onClose={() => {
             setShowModal(false)
             setEditingTeacher(null)

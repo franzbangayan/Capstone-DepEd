@@ -92,18 +92,16 @@ class TeacherViewSet(viewsets.ModelViewSet):
     queryset = Teacher.objects.all()   # kept for router introspection only
     serializer_class = TeacherSerializer
     permission_classes = [IsAuthenticated]
-
+ 
     def get_queryset(self):
-        # Every user is locked to their own school's teachers, regardless
-        # of what the frontend sends.
+  
         return Teacher.objects.filter(school_id=self.request.user.school_id_id)
-
+ 
     def perform_create(self, serializer):
         serializer.save(school_id=self.request.user.school_id_id)
-
+ 
     def perform_update(self, serializer):
         serializer.save(school_id=self.request.user.school_id_id)
-
 
 class TeacherLoadLimitViewSet(viewsets.ModelViewSet):
     queryset = TeacherLoadLimit.objects.all()
