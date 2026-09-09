@@ -81,6 +81,7 @@ const handleSubmit = async (e) => {
     if (method === "login") {
       localStorage.setItem(ACCESS_TOKEN, res.data.access);
       localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+      localStorage.setItem("school_id", Number(res.data.school_id));
 
       // This requires the login API to return school_id
       const loggedInSchoolId =

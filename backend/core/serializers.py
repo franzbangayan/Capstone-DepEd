@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth.password_validation import validate_password
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
@@ -27,6 +28,16 @@ class UserSerializer(serializers.ModelSerializer):
         if password is not None:
             instance.set_password(password)
         return super().update(instance, validated_data)
+
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        data["school_id"] = self.user.school_id_id
+
+        return data
 
 
 # A ModelSerializer auto-generates fields based on the model.

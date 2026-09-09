@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
@@ -11,7 +12,7 @@ from .models import (
     SubjectOffering, TeachingLoad, EmploymentStatus
 )
 from .serializers import (
-    UserSerializer, SchoolSerializer, SchoolYearSerializer, TrackSerializer,
+    CustomTokenObtainPairSerializer, UserSerializer, SchoolSerializer, SchoolYearSerializer, TrackSerializer,
     StrandSerializer, GradeLevelSerializer, SubjectSerializer,
     TeacherSerializer, TeacherLoadLimitSerializer, TeacherSpecializationSerializer,
     SectionSerializer, SubjectOfferingSerializer, TeachingLoadSerializer,
@@ -24,6 +25,10 @@ class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
 
 # A ModelViewSet automatically gives you all 5 standard operations
 # for each model, with NO extra code needed:
