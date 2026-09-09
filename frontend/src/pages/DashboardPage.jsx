@@ -21,9 +21,9 @@ useEffect(() => {
         api.get("/api/sections/"),
       ])
 
-      const schoolYear = schoolYears.data[0]
+      const schoolYearResponse = schoolYears.data[0] || null
 
-      setSchoolYear(`${schoolYear.year_start}-${schoolYear.year_end}`)
+      schoolYearResponse && setSchoolYear(`${schoolYearResponse.year_start}-${schoolYearResponse.year_end}`)
       setTeacherCount(teachers.data.length)
       setSectionCount(sections.data.length)
 
