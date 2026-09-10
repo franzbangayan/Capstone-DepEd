@@ -40,6 +40,15 @@ const TeacherFormModal = ({
   const [lastName, setLastName] = useState(teacher?.last_name || teacher?.lastName || '')
   const [firstName, setFirstName] = useState(teacher?.first_name || teacher?.firstName || '')
   const [middleName, setMiddleName] = useState(teacher?.middle_name || teacher?.middleName || '')
+  const [birthdate, setBirthdate] = useState(teacher?.birthdate || '')
+  const [gender, setGender] = useState(teacher?.gender || '')
+  const [houseNumber, setHouseNumber] = useState(teacher?.house_no_street || '')
+  const [Barangay, setBarangay] = useState(teacher?.barangay || '')
+  const [city, setCity] = useState(teacher?.city_municipality || '')
+  const [province, setProvince] = useState(teacher?.province || '')
+  const [zipCode, setZipCode] = useState(teacher?.zip_code || '')
+  const [contactNumber, setContactNumber] = useState(teacher?.contact_number || '')
+  const [email, setEmail] = useState(teacher?.email || '')
   const [statusId, setStatusId] = useState(teacher?.employment_status || '')
   const [maxLoad, setMaxLoad] = useState(teacher?.max_load_hours ?? teacher?.maxLoad ?? 6)
   const [specs, setSpecs] = useState(teacher?.specializations || [])
@@ -106,13 +115,22 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
     setSaving(true)
 
     try {
-    const teacherPayload = {
-  last_name: lastName.trim(),
-  first_name: firstName.trim(),
-  middle_name: middleName.trim() || null,
-  employment_status: Number(statusId),
-  ...(teacher ? {} : { school: Number(resolvedSchoolId) }),
-};
+      const teacherPayload = {
+        last_name: lastName.trim(),
+        first_name: firstName.trim(),
+        middle_name: middleName.trim() || null,
+        gender: gender || null,
+        birthdate: birthdate || null,
+        house_no_street: houseNumber.trim() || null,
+        barangay: Barangay.trim() || null,
+        city_municipality: city.trim() || null,
+        province: province.trim() || null,
+        zip_code: zipCode.trim() || null,
+        contact_number: contactNumber.trim() || null,
+        email: email.trim() || null,
+        employment_status: Number(statusId),
+        ...(teacher ? {} : { school: Number(resolvedSchoolId) }),
+      };
 
       const teacherResponse = teacher
         ? await api.put(`/api/teachers/${teacher.teacher_id}/`, teacherPayload)
@@ -185,6 +203,60 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
                 <label className="field-label">Middle Name</label>
                 <input className="input" type="text" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
               </div>
+            </div>
+
+            <div className="field">
+              <label className="field-label">Birthdate</label>
+              <div className="select-wrap">
+                <input className="input" type="date" value={birthdate} onChange={(e) => setBirthdate(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="field-label">Gender</label>
+              <div className="select-wrap">
+                <select value={gender} onChange={(e) => setGender(e.target.value)} required>
+                  <option value="">Select gender</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                </select>
+                <IconChevronDown />
+              </div>
+            </div>
+
+            <div className="field">
+              <label className="field-label">House Number / Street</label>
+              <input className="input" type="text" value={houseNumber} onChange={(e) => setHouseNumber(e.target.value)} required />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Barangay</label>
+              <input className="input" type="text" value={Barangay} onChange={(e) => setBarangay(e.target.value)} required />
+            </div>
+
+            <div className="field">
+              <label className="field-label">City</label>
+              <input className="input" type="text" value={city} onChange={(e) => setCity(e.target.value)} required />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Province</label>
+              <input className="input" type="text" value={province} onChange={(e) => setProvince(e.target.value)} required />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Zip Code</label>
+              <input className="input" type="text" value={zipCode} onChange={(e) => setZipCode(e.target.value)} required />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Contact Number</label>
+              <input className="input" type="text" value={contactNumber} onChange={(e) => setContactNumber(e.target.value)} required />
+            </div>
+
+            <div className="field">
+              <label className="field-label">Email</label>
+              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
 
             <div className="field">
