@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom"
+import { useSchool } from "../contexts/SchoolContext.jsx"
 import '../styles/Header.css'
 import api from '../api.js';
 
@@ -16,35 +17,7 @@ const Header = () => {
   // "/" -> "dashboard", "/teachers" -> "teachers", "/curriculum" -> "curriculum", etc.
   const screen = location.pathname === '/' ? 'dashboard' : location.pathname.slice(1)
   const info = SCREEN_TITLES[screen] ?? SCREEN_TITLES.dashboard
-  const [schoolName, setSchoolName] = useState("SCHOOL NAME");
-  const [schoolYear, setSchoolYear] = useState("S.Y. 2024–2025");
-  const [activeSchoolYear, setActiveSchoolYear] = useState(null);
-
-  useEffect(() => {
-
-    const fetchData = async () => {
-      try {
-        const response = await api.get("/api/schools/");
-        const data = response.data;
-        const schoolId = localStorage.getItem("school_id");
-        const activeSchool = data.find(school => school.school_id === Number(schoolId));
-        if (activeSchool) {
-          setSchoolName(activeSchool.school_name);
-        }
-        
-        const schoolYearResponse = await api.get("/api/school-years/");
-        setActiveSchoolYear(schoolYearResponse.data.find(year => year.is_active));
-        const schoolYearData = activeSchoolYear || null;
-        setSchoolYear(schoolYearData ? `${schoolYearData.year_start}-${schoolYearData.year_end}` : "S.Y. 2024–2025");
-
-      } catch (err) {
-        console.error(err)
-      }
-    }
-
-    fetchData()
-
-  }, [activeSchoolYear]);
+  const { schoolName, schoolYear } = useSchool();
 
   return (
     <header className="header">

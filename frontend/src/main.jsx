@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
+import AppWrapper from './AppWrapper.jsx'
 
 createRoot(document.getElementById('root')).render(
-    <App />
+    <AppWrapper />
 )

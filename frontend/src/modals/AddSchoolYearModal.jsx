@@ -1,6 +1,7 @@
 import '../styles/AddSubjectModal.css'
 import { useState } from 'react'
 import { IconX } from '../components/Icons'
+import { useSchool } from '../contexts/SchoolContext.jsx'
 import api from '../api'
 
 const currentYear = new Date().getFullYear()
@@ -27,6 +28,7 @@ const AddSchoolYearModal = ({ schoolYear, onClose, onSaved }) => {
   const [isActive,  setIsActive]  = useState(schoolYear?.is_active ?? false)
   const [saving,    setSaving]    = useState(false)
   const [error,     setError]     = useState('')
+  const { refresh } = useSchool();
 
   const handleStartChange = (val) => {
     const n = Number(val)
@@ -59,6 +61,7 @@ const AddSchoolYearModal = ({ schoolYear, onClose, onSaved }) => {
       }
 
       onSaved?.()
+      refresh();
       onClose()
     } catch (saveError) {
       setError(getErrorMessage(saveError))
