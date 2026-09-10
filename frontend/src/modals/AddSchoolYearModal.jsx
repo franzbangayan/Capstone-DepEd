@@ -1,6 +1,6 @@
 import '../styles/AddSubjectModal.css'
 import { useState } from 'react'
-import { IconX } from './Icons'
+import { IconX } from '../components/Icons'
 import api from '../api'
 
 const currentYear = new Date().getFullYear()

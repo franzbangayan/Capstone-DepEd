@@ -1,9 +1,9 @@
 import '../styles/CurriculumPage.css'
 import { useState, useEffect, useCallback } from 'react'
 import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevronDown } from '../components/Icons'
-import AddSubjectModal from '../components/AddSubjectModal'
-import AddSectionModal from '../components/AddSectionModal'
-import AddSchoolYearModal from '../components/AddSchoolYearModal'
+import AddSubjectModal from '../modals/AddSubjectModal'
+import AddSectionModal from '../modals/AddSectionModal'
+import AddSchoolYearModal from '../modals/AddSchoolYearModal'
 import api from '../api'
   
 

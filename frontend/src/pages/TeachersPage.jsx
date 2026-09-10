@@ -1,7 +1,7 @@
 import '../styles/TeachersPage.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IconSearch, IconChevronDown, IconPlus, IconEdit, IconTrash } from '../components/Icons'
-import TeacherFormModal from '../components/TeacherFormModal'
+import TeacherFormModal from '../modals/TeacherFormModal'
 import api from '../api'
 
 const ACTIVE_DATE = '9999-12-31'
