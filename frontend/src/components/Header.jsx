@@ -18,6 +18,7 @@ const Header = () => {
   const info = SCREEN_TITLES[screen] ?? SCREEN_TITLES.dashboard
   const [schoolName, setSchoolName] = useState("SCHOOL NAME");
   const [schoolYear, setSchoolYear] = useState("S.Y. 2024–2025");
+  const [activeSchoolYear, setActiveSchoolYear] = useState(null);
 
   useEffect(() => {
 
@@ -32,7 +33,7 @@ const Header = () => {
         }
         
         const schoolYearResponse = await api.get("/api/school-years/");
-        const activeSchoolYear = schoolYearResponse.data.find(year => year.is_active);
+        setActiveSchoolYear(schoolYearResponse.data.find(year => year.is_active));
         const schoolYearData = activeSchoolYear || null;
         setSchoolYear(schoolYearData ? `${schoolYearData.year_start}-${schoolYearData.year_end}` : "S.Y. 2024–2025");
 
@@ -43,7 +44,7 @@ const Header = () => {
 
     fetchData()
 
-  }, [])
+  }, [activeSchoolYear]);
 
   return (
     <header className="header">
