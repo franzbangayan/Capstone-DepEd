@@ -4,26 +4,23 @@ import api from "../api"
 import { IconUsers, IconSchool, IconAlert, IconCalendar, IconZap } from '../components/Icons'
 import '../styles/DashboardPage.css'
 import '../styles/App.css'
+import { useSchool } from "../contexts/SchoolContext.jsx"
 
 const DashboardPage = () => {
   const navigate = useNavigate()
     const [teacherCount, setTeacherCount] = useState()  
     const [sectionCount, setSectionCount] = useState()
-    const [schoolYear, setSchoolYear] = useState()
+    const { refresh, schoolYear } = useSchool();
 
 useEffect(() => {
 
   const fetchData = async () => {
     try {
-      const [schoolYears, teachers, sections] = await Promise.all([
-        api.get("/api/school-years/"),
+      const [teachers, sections] = await Promise.all([
         api.get("/api/teachers/"),
         api.get("/api/sections/"),
       ])
 
-      const schoolYearResponse = schoolYears.data[0] || null
-
-      schoolYearResponse && setSchoolYear(`${schoolYearResponse.year_start}-${schoolYearResponse.year_end}`)
       setTeacherCount(teachers.data.length)
       setSectionCount(sections.data.length)
 
@@ -32,6 +29,7 @@ useEffect(() => {
     }
   }
 
+  refresh();
   fetchData()
 
 }, [])
