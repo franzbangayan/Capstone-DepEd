@@ -1,6 +1,8 @@
 import '../styles/SchedulingPage.css'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import api from '../api'
 import { IconZap, IconChevronDown, IconCheck, IconAlert, IconLayers } from '../components/Icons'
+import ReviewScheduleModal from '../modals/ReviewScheduleModal'
 
 const GRADE_LEVELS_BY_LEVEL = {
   All:                  ['All Levels'],
@@ -19,19 +21,80 @@ const DEPED_CONSTRAINTS = [
   'SHS Specialized subjects must be taught by qualified strand teachers',
 ]
 
-const SchedulingPage = ({ onNavigate }) => {
-  const [schoolYear, setSchoolYear] = useState('2024–2025')
+const listData = (response) => (
+  Array.isArray(response.data) ? response.data : response.data.results || []
+)
+
+const SchedulingPage = () => {
+  const [schoolYears,   setSchoolYears]   = useState([])   // real rows from /api/school-years/
+  const [schoolYearId,  setSchoolYearId]  = useState('')   // actual school_year_id, not a parsed string
+  const [loadingYears,  setLoadingYears]  = useState(true)
+
   const [eduLevel,   setEduLevel]   = useState('Junior High School')
   const [gradeLevel, setGradeLevel] = useState('Grade 7')
   const [strand,     setStrand]     = useState('N/A')
 
+  const [generating, setGenerating] = useState(false)
+  const [error, setError]           = useState(null)
+  const [results, setResults]       = useState(null)   // response body -> opens the modal when set
+
   const isAll = eduLevel === 'All'
   const isSHS = eduLevel === 'Senior High School'
+
+  useEffect(() => {
+    const loadSchoolYears = async () => {
+      setLoadingYears(true)
+      try {
+        const res = await api.get('/api/school-years/')
+        const years = listData(res)
+        setSchoolYears(years)
+        // Default to the active school year if one exists, else the first row.
+        const active = years.find((y) => y.is_active)
+        setSchoolYearId(String((active || years[0])?.school_year_id || ''))
+      } catch (err) {
+        console.error(err)
+        setError('Unable to load school years.')
+      } finally {
+        setLoadingYears(false)
+      }
+    }
+    loadSchoolYears()
+  }, [])
 
   const handleEduLevelChange = (level) => {
     setEduLevel(level)
     setGradeLevel(GRADE_LEVELS_BY_LEVEL[level][0])
     setStrand('N/A')
+  }
+
+  const selectedSchoolYear = schoolYears.find(
+    (y) => String(y.school_year_id) === String(schoolYearId)
+  )
+
+  const handleGenerate = async () => {
+    setGenerating(true)
+    setError(null)
+    try {
+      if (!selectedSchoolYear) {
+        setError('Select a school year first.')
+        setGenerating(false)
+        return
+      }
+
+      const res = await api.post('/api/generate-load/', {
+        algorithm: 'backtracking',
+        school_year: selectedSchoolYear.year_start,
+        education_level: eduLevel,
+        grade_level: gradeLevel,
+        strand: strand,
+      })
+      setResults(res.data)
+    } catch (err) {
+      console.error(err)
+      setError(err?.response?.data?.detail || 'Failed to generate teaching load. Check the server logs.')
+    } finally {
+      setGenerating(false)
+    }
   }
 
   return (
@@ -51,11 +114,19 @@ const SchedulingPage = ({ onNavigate }) => {
                 <label className="field-label">School Year</label>
                 <div className="select-wrap">
                   <select
-                    value={schoolYear}
-                    onChange={(e) => { setSchoolYear(e.target.value) }}
+                    value={schoolYearId}
+                    onChange={(e) => { setSchoolYearId(e.target.value) }}
+                    disabled={loadingYears}
                   >
-                    <option>2024–2025</option>
-                    <option>2023–2024</option>
+                    {loadingYears && <option>Loading…</option>}
+                    {!loadingYears && schoolYears.length === 0 && (
+                      <option value="">No school years found</option>
+                    )}
+                    {schoolYears.map((sy) => (
+                      <option key={sy.school_year_id} value={sy.school_year_id}>
+                        {sy.year_start}–{sy.year_end}{sy.is_active ? ' (Active)' : ''}
+                      </option>
+                    ))}
                   </select>
                   <IconChevronDown />
                 </div>
@@ -154,8 +225,10 @@ const SchedulingPage = ({ onNavigate }) => {
             </div>
           </div>
 
-          <button className="proceed-btn" onClick={() => { onNavigate && onNavigate('review-schedule') }}>
-            <IconZap /> Generate Teaching Load
+          {error && <div className="constraint-text warn">{error}</div>}
+
+          <button className="proceed-btn" onClick={handleGenerate} disabled={generating}>
+            <IconZap /> {generating ? 'Generating...' : 'Generate Teaching Load'}
           </button>
 
         </div>
@@ -170,7 +243,7 @@ const SchedulingPage = ({ onNavigate }) => {
                   ? 'All Levels — Elementary, JHS, SHS'
                   : eduLevel + ' · ' + gradeLevel + (isSHS && strand !== 'N/A' ? ' · ' + strand : '')
                 }
-                {' · S.Y. ' + schoolYear}
+                {selectedSchoolYear ? ` · S.Y. ${selectedSchoolYear.year_start}–${selectedSchoolYear.year_end}` : ''}
               </div>
             </div>
             <div className="readonly-badge">
@@ -216,6 +289,10 @@ const SchedulingPage = ({ onNavigate }) => {
 
         </div>
       </div>
+
+      {results && (
+        <ReviewScheduleModal results={results} onClose={() => { setResults(null) }} />
+      )}
     </div>
   )
 }

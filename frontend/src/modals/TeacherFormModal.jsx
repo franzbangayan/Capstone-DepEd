@@ -3,16 +3,6 @@ import { useEffect, useState } from 'react'
 import { IconX, IconChevronDown } from '../components/Icons'
 import api from '../api'
 
-const SPECIALIZATION_OPTIONS = [
-  'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Earth Science',
-  'Filipino', 'English', 'Literature', 'Araling Panlipunan', 'Social Studies',
-  'MAPEH', 'Physical Education', 'Music', 'Arts',
-  'TLE', 'Computer Science', 'EPP',
-  'Values Education', 'Oral Communication',
-  'General Biology', 'Business Mathematics', 'Statistics',
-  'Creative Writing', 'General Mathematics',
-]
-
 const ACTIVE_DATE = '9999-12-31'
 
 const getErrorMessage = (error) => {
@@ -28,6 +18,10 @@ const getErrorMessage = (error) => {
 
   return error?.message || 'Unable to save teacher.'
 }
+
+const listData = (response) => (
+  Array.isArray(response.data) ? response.data : response.data.results || []
+)
 
 const TeacherFormModal = ({
   teacher,
@@ -83,12 +77,7 @@ const TeacherFormModal = ({
     event.preventDefault()
     setError('')
 
-  const storedSchoolId = localStorage.getItem("school_id");
-  const environmentSchoolId = import.meta.env.VITE_SCHOOL_ID;
-  const resolvedSchoolId = localStorage.getItem("school_id");
-
-
-
+    const resolvedSchoolId = localStorage.getItem("school_id");
 
     if (!lastName.trim() || !firstName.trim()) {
       setError('Last name and first name are required.')
@@ -101,16 +90,14 @@ const TeacherFormModal = ({
     }
 
     if (!teacher && !resolvedSchoolId) {
-  setError("Your account is not linked to a school.");
-  return;
-}
+      setError("Your account is not linked to a school.");
+      return;
+    }
 
-
-if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
-  setError("The selected school ID is invalid.");
-  return;
-}
-
+    if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
+      setError("The selected school ID is invalid.");
+      return;
+    }
 
     setSaving(true)
 
@@ -139,10 +126,9 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
       const savedTeacher = teacherResponse.data
       const teacherId = savedTeacher.teacher_id
 
+      // --- Load limit (unchanged) ---
       const relatedResponse = await api.get('/api/teacher-load-limits/')
-      const loadLimits = Array.isArray(relatedResponse.data)
-        ? relatedResponse.data
-        : relatedResponse.data.results || []
+      const loadLimits = listData(relatedResponse)
       const activeLoadLimit = loadLimits.find(
         (item) => Number(item.teacher) === Number(teacherId) && item.date_ended === ACTIVE_DATE
       )
@@ -163,7 +149,50 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
         await api.post('/api/teacher-load-limits/', loadPayload)
       }
 
-      
+      // --- Specializations ---
+      // Options in the UI now come straight from the `subjects` prop
+      // (real Subject rows), so every name in `specs` should resolve.
+      // Fail loudly instead of silently dropping one if it doesn't -
+      // that mismatch is exactly what caused specializations to never
+      // get saved before.
+      const desiredSubjectIds = specs.map((name) => {
+        const subjectId = resolveSubjectId(name)
+        if (!subjectId) {
+          throw new Error(`"${name}" is not a recognized subject. Refresh the page and try again.`)
+        }
+        return subjectId
+      })
+
+      const specResponse = await api.get('/api/teacher-specializations/')
+      const allSpecs = listData(specResponse)
+      const activeSpecs = allSpecs.filter(
+        (item) => Number(item.teacher) === Number(teacherId) && item.date_ended === ACTIVE_DATE
+      )
+      const activeSubjectIds = activeSpecs.map((item) => item.subject)
+      const today = new Date().toISOString().slice(0, 10)
+
+      // Newly checked subjects that aren't already an active specialization.
+      const toAdd = desiredSubjectIds.filter((id) => !activeSubjectIds.includes(id))
+      await Promise.all(toAdd.map((subjectId) => (
+        api.post('/api/teacher-specializations/', {
+          teacher: teacherId,
+          subject: subjectId,
+          date_started: today,
+          date_ended: ACTIVE_DATE,
+        })
+      )))
+
+      // Unchecked subjects that were active - close them out (matches
+      // the date_ended sentinel convention used everywhere else in
+      // this schema) instead of deleting, so history is preserved.
+      const toClose = activeSpecs.filter((item) => !desiredSubjectIds.includes(item.subject))
+      await Promise.all(toClose.map((item) => (
+        api.put(`/api/teacher-specializations/${item.specialization_id}/`, {
+          ...item,
+          date_ended: today,
+        })
+      )))
+
       onSaved?.()
       onClose()
     } catch (saveError) {
@@ -280,6 +309,9 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
 
             <div className="field">
               <label className="field-label">Specializations</label>
+              {subjects.length === 0 && (
+                <span className="field-hint">No subjects found. Add subjects in Curriculum Setup first.</span>
+              )}
               {specs.length > 0 && (
                 <div className="spec-selected">
                   {specs.map((name) => (
@@ -291,11 +323,14 @@ if (!teacher && Number.isNaN(Number(resolvedSchoolId))) {
                 </div>
               )}
               <div className="spec-options">
-                {SPECIALIZATION_OPTIONS.filter((name) => !specs.includes(name)).map((name) => (
-                  <button type="button" key={name} className="spec-option" onClick={() => toggleSpec(name)}>
-                    + {name}
-                  </button>
-                ))}
+                {subjects
+                  .map((s) => s.subject_name)
+                  .filter((name) => !specs.includes(name))
+                  .map((name) => (
+                    <button type="button" key={name} className="spec-option" onClick={() => toggleSpec(name)}>
+                      + {name}
+                    </button>
+                  ))}
               </div>
             </div>
           </div>

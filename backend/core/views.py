@@ -180,18 +180,19 @@ class LoginView(APIView):
         }, status=status.HTTP_200_OK)
 
 
+from .algorithm import run_greedy_allocation, run_backtracking_allocation
+
 class GenerateLoadView(APIView):
-    """
-    POST /api/generate-load/
-
-    Triggers the allocation algorithm, which scans all sections and
-    subject offerings, assigns qualified available teachers, and saves
-    the results as TeachingLoad records.
-
-    No request body needed — just POST to this URL and it runs.
-    (Requires login, same as every other endpoint.)
-    """
-
     def post(self, request):
-        results = run_greedy_allocation()
+        algorithm = request.data.get('algorithm', 'greedy')
+        if algorithm == 'backtracking':
+            results = run_backtracking_allocation(
+                request.user.school_id_id,
+                school_year=request.data.get('school_year'),
+                education_level=request.data.get('education_level'),
+                grade_level=request.data.get('grade_level'),
+                strand=request.data.get('strand'),
+            )
+        else:
+            results = run_greedy_allocation()
         return Response(results, status=status.HTTP_200_OK)
