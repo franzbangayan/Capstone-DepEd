@@ -5,7 +5,7 @@ from .views import (
     GradeLevelViewSet, SubjectViewSet, TeacherViewSet,
     TeacherLoadLimitViewSet, TeacherSpecializationViewSet, SectionViewSet,
     SubjectOfferingViewSet, TeachingLoadViewSet, LoginView, GenerateLoadView,
-    EmploymentStatusViewSet
+    EmploymentStatusViewSet, ClearGeneratedLoadsView
 )
 
 router = DefaultRouter()
@@ -27,4 +27,5 @@ router.register(r'employment-statuses', EmploymentStatusViewSet)
 urlpatterns = router.urls + [
     path('login/', LoginView.as_view(), name='login'),
     path('generate-load/', GenerateLoadView.as_view(), name='generate-load'),
+    path('clear-generated-loads/', ClearGeneratedLoadsView.as_view(), name='clear-generated-loads')
 ]

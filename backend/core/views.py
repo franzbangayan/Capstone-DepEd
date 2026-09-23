@@ -18,7 +18,7 @@ from .serializers import (
     SectionSerializer, SubjectOfferingSerializer, TeachingLoadSerializer,
     EmploymentStatusSerializer
 )
-from .algorithm import run_greedy_allocation
+from .algorithm import run_greedy_allocation, run_backtracking_allocation, clear_generated_loads
 
 
 class CreateUserView(generics.CreateAPIView):
@@ -196,3 +196,24 @@ class GenerateLoadView(APIView):
         else:
             results = run_greedy_allocation()
         return Response(results, status=status.HTTP_200_OK)
+
+
+class ClearGeneratedLoadsView(APIView):
+    """
+    POST /api/clear-generated-loads/
+    Same body shape as /api/generate-load/ (school_year, education_level,
+    grade_level, strand). Deletes only algorithm-generated TeachingLoad
+    rows (is_manual_override=False) in that scope, so Generate can be
+    run again from a clean slate - manual overrides are left alone.
+    """
+ 
+    def post(self, request):
+        deleted_count = clear_generated_loads(
+            request.user.school_id_id,
+            school_year=request.data.get('school_year'),
+            education_level=request.data.get('education_level'),
+            grade_level=request.data.get('grade_level'),
+            strand=request.data.get('strand'),
+        )
+        return Response({'deleted_count': deleted_count}, status=status.HTTP_200_OK)
+ 

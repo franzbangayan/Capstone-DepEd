@@ -34,6 +34,7 @@ const SchedulingPage = () => {
   const [strand,     setStrand]     = useState('N/A')
 
   const [generating, setGenerating] = useState(false)
+  const [clearing, setClearing]     = useState(false)
   const [error, setError]           = useState(null)
   const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
 
@@ -98,6 +99,29 @@ const SchedulingPage = () => {
 
   const handlePrint = () => {
     window.print()
+  }
+
+  const handleClear = async () => {
+    if (!selectedSchoolYear) return
+    if (!window.confirm('Clear all algorithm-generated teaching loads for this scope? Manually overridden loads are kept.')) return
+
+    setClearing(true)
+    setError(null)
+    try {
+      const res = await api.post('/api/clear-generated-loads/', {
+        school_year: selectedSchoolYear.year_start,
+        education_level: eduLevel,
+        grade_level: gradeLevel,
+        strand: strand,
+      })
+      setResults(null)
+      alert(`Cleared ${res.data.deleted_count} generated load${res.data.deleted_count === 1 ? '' : 's'}. You can generate again.`)
+    } catch (err) {
+      console.error(err)
+      setError('Failed to clear generated loads.')
+    } finally {
+      setClearing(false)
+    }
   }
 
   const assigned = results?.assigned || []
@@ -210,7 +234,7 @@ const SchedulingPage = () => {
             </div>
           </div>
 
-          {/* Constraints */}
+       
           <div className="card card-body">
             <div className="section-title">DepEd Constraint Rules</div>
             <div className="constraints-list">
@@ -237,9 +261,13 @@ const SchedulingPage = () => {
             <IconZap /> {generating ? 'Generating...' : 'Generate Teaching Load'}
           </button>
 
+          <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
+            {clearing ? 'Clearing…' : 'Clear Generated Loads (For Testing)'}
+          </button>
+
         </div>
 
-        {/* Right: Preview - switches from Subject Offerings to the generated schedule */}
+    
         <div className="card card-body">
           <div className="row-between sched-preview-header no-print">
             <div>
@@ -271,6 +299,14 @@ const SchedulingPage = () => {
                 <h1>Teaching Load Schedule</h1>
                 <p>Generated {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
               </div>
+
+              {assigned.length === 0 && skipped.length === 0 && results.already_assigned_count > 0 && (
+                <div className="constraint-text warn" style={{ marginBottom: '12px' }}>
+                  All {results.already_assigned_count} offering{results.already_assigned_count === 1 ? '' : 's'} in this scope
+                  already {results.already_assigned_count === 1 ? 'has' : 'have'} a teaching load. Nothing new to generate —
+                  use "Clear Generated Loads" on the left if you want to re-run this scope.
+                </div>
+              )}
 
               <table className="paper-table">
                 <thead>
