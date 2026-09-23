@@ -4,7 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
     User, Teacher, TeacherLoadLimit, TeacherSpecialization, Section,
-    SubjectOffering, TeachingLoad, EmploymentStatus
+    SubjectOffering, TeachingLoad, EmploymentStatus, GenerationLog
 )
 
 
@@ -186,3 +186,18 @@ class TeachingLoadSerializer(serializers.ModelSerializer):
                 )
 
         return data
+
+
+class GenerationLogSerializer(serializers.ModelSerializer):
+    generated_by_username = serializers.CharField(source='generated_by.username', read_only=True, default=None)
+    school_year_label = serializers.SerializerMethodField()
+ 
+    class Meta:
+        model = GenerationLog
+        fields = '__all__'
+ 
+    def get_school_year_label(self, obj):
+        if obj.school_year:
+            return f"{obj.school_year.year_start}–{obj.school_year.year_end}"
+        return None
+ 

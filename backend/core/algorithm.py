@@ -1,5 +1,6 @@
-from .models import Section, SubjectOffering, Teacher, TeacherSpecialization, TeachingLoad
+from .models import Section, SubjectOffering, Teacher, TeacherSpecialization, TeachingLoad, SchoolYear, GenerationLog
 from datetime import time
+from time import perf_counter
 
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
@@ -18,23 +19,23 @@ PERIODS = [
 ROOMS = [f"Room {i}" for i in range(1, 21)]
 
 
-def run_greedy_allocation():
+def run_greedy_allocation(school_id=None, generated_by=None):
     """
     PLACEHOLDER allocation logic (Member 2 will replace this with the
     real Greedy + Backtracking algorithm from Chapter 3).
 
-    For now, this does a simple greedy pass:
-    For every Section, find SubjectOfferings that match its grade level
-    (and strand, if applicable). For each one not already assigned,
-    find the first qualified teacher who has room in their schedule,
-    and assign them.
+    school_id defaults to None to keep any existing call site working
+    unchanged - pass it to scope the run to one school and get an
+    accurate GenerationLog entry (a log row needs to know which school
+    it belongs to).
 
     Returns a summary dictionary so the API can report what happened.
     """
+    start = perf_counter()
     created = []
     skipped = []
 
-    sections = Section.objects.all()
+    sections = Section.objects.filter(school_id=school_id) if school_id else Section.objects.all()
 
     for section in sections:
         offerings = SubjectOffering.objects.filter(grade_level=section.grade_level)
@@ -95,16 +96,48 @@ def run_greedy_allocation():
                     'reason': reason,
                 })
 
-    return {
+    result = {
         'assigned_count': len(created),
         'skipped_count': len(skipped),
         'assigned': created,
         'skipped': skipped,
     }
 
+    if school_id:
+        _log_generation(school_id, 'greedy', result=result,
+                         duration_seconds=perf_counter() - start, generated_by=generated_by)
 
+    return result
+
+
+# ============================================================
 # Backtracking allocation (below this point)
+# ============================================================
 
+def _resolve_school_year_id(school_year_start):
+    if not school_year_start:
+        return None
+    sy = SchoolYear.objects.filter(year_start=school_year_start).first()
+    return sy.school_year_id if sy else None
+
+
+def _log_generation(school_id, algorithm, school_year=None, education_level=None,
+                     grade_level=None, strand=None, result=None, duration_seconds=0,
+                     generated_by=None):
+    GenerationLog.objects.create(
+        school_id=school_id,
+        school_year_id=_resolve_school_year_id(school_year),
+        education_level=education_level,
+        grade_level=grade_level,
+        strand=strand,
+        algorithm=algorithm,
+        assigned_count=result.get('assigned_count', 0),
+        skipped_count=result.get('skipped_count', 0),
+        already_assigned_count=result.get('already_assigned_count', 0),
+        duration_seconds=duration_seconds,
+        details={'assigned': result.get('assigned', []), 'skipped': result.get('skipped', [])},
+        generated_by=generated_by,
+    )
 
 def _master_slots():
     return [
@@ -139,7 +172,13 @@ def _scoped_sections(school_id, school_year=None, education_level=None, grade_le
 
 
 def _build_tasks(school_id, school_year=None, education_level=None, grade_level=None, strand=None):
-
+    """
+    One task per (section, applicable offering not yet loaded), scoped
+    to one school plus the optional scheduling-parameter filters.
+    Returns (tasks, already_assigned_count) - the count lets the
+    frontend tell "nothing to do, already fully assigned" apart from
+    "nothing worked."
+    """
     sections = _scoped_sections(school_id, school_year, education_level, grade_level, strand)
 
     tasks = []
@@ -174,8 +213,21 @@ def _qualified_candidates(offering, section):
     ))
 
 
-def run_backtracking_allocation(school_id, school_year=None, education_level=None, grade_level=None, strand=None):
-    
+def run_backtracking_allocation(school_id, school_year=None, education_level=None, grade_level=None,
+                                 strand=None, generated_by=None):
+    """
+    Backtracking allocation for one school, optionally scoped by
+    school year / education level / grade level / strand.
+
+    Difference from Greedy: tries a teacher, and if committing to them
+    makes a LATER section/offering unsolvable, undoes it (including
+    any day/period/room slots reserved) and tries the next qualified
+    candidate - actual backtracking, not first-fit.
+
+    Search runs entirely in memory; TeachingLoad rows are written only
+    after the full pass through every task completes.
+    """
+    start = perf_counter()
     tasks, already_assigned_count = _build_tasks(school_id, school_year, education_level, grade_level, strand)
     tasks.sort(key=lambda t: len(_qualified_candidates(t[1], t[0])))
 
@@ -300,7 +352,7 @@ def run_backtracking_allocation(school_id, school_year=None, education_level=Non
             'periods_scheduled': len(a['slots']),
         })
 
-    return {
+    result = {
         'assigned_count': len(created),
         'skipped_count': len(skipped),
         'already_assigned_count': already_assigned_count,
@@ -308,9 +360,21 @@ def run_backtracking_allocation(school_id, school_year=None, education_level=Non
         'skipped': skipped,
     }
 
+    _log_generation(school_id, 'backtracking', school_year=school_year, education_level=education_level,
+                     grade_level=grade_level, strand=strand, result=result,
+                     duration_seconds=perf_counter() - start, generated_by=generated_by)
+
+    return result
+
 
 def clear_generated_loads(school_id, school_year=None, education_level=None, grade_level=None, strand=None):
+    """
+    Deletes TeachingLoad rows for the given scope so the algorithm can
+    be re-run against a clean slate during testing.
 
+    Only deletes rows where is_manual_override=False - anything a
+    principal set by hand is left untouched.
+    """
     sections = _scoped_sections(school_id, school_year, education_level, grade_level, strand)
     deleted_count, _ = TeachingLoad.objects.filter(
         section__in=sections, is_manual_override=False

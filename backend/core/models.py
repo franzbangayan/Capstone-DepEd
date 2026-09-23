@@ -275,3 +275,50 @@ class TeachingLoad(models.Model):
 
     def __str__(self):
         return f"{self.teacher} -> {self.offering.subject.subject_name} ({self.section.section_name})"
+
+
+class GenerationLog(models.Model):
+    """
+    One row per Generate click. Exists so ReportsPage's history table
+    is real data instead of a hardcoded placeholder, and so the
+    Greedy-vs-Backtracking comparison has actual logged numbers
+    (assigned/skipped counts, timing) instead of only whatever the
+    last run happened to leave in TeachingLoad.
+    """
+    ALGORITHM_CHOICES = [
+        ('greedy', 'Greedy'),
+        ('backtracking', 'Backtracking'),
+    ]
+ 
+    log_id = models.AutoField(primary_key=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id')
+    school_year = models.ForeignKey(
+        SchoolYear, on_delete=models.SET_NULL, db_column='school_year_id',
+        blank=True, null=True
+    )
+    education_level = models.CharField(max_length=50, blank=True, null=True)
+    grade_level = models.CharField(max_length=50, blank=True, null=True)
+    strand = models.CharField(max_length=50, blank=True, null=True)
+ 
+    algorithm = models.CharField(max_length=20, choices=ALGORITHM_CHOICES)
+    assigned_count = models.IntegerField(default=0)
+    skipped_count = models.IntegerField(default=0)
+    already_assigned_count = models.IntegerField(default=0)
+    duration_seconds = models.FloatField(default=0)
+ 
+    # Full assigned/skipped breakdown from that run, so a history row
+    # can be expanded and previewed later, not just its counts.
+    details = models.JSONField(default=dict, blank=True)
+ 
+    generated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, db_column='generated_by_id',
+        blank=True, null=True, related_name='generation_logs'
+    )
+    generated_at = models.DateTimeField(auto_now_add=True)
+ 
+    class Meta:
+        db_table = 'GENERATION_LOG'
+        ordering = ['-generated_at']
+ 
+    def __str__(self):
+        return f"{self.get_algorithm_display()} run {self.generated_at:%Y-%m-%d %H:%M} ({self.assigned_count} assigned)"

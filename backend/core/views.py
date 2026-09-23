@@ -9,14 +9,14 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from .models import (
     School, SchoolYear, Track, Strand, GradeLevel, Subject,
     User, Teacher, TeacherLoadLimit, TeacherSpecialization, Section,
-    SubjectOffering, TeachingLoad, EmploymentStatus
+    SubjectOffering, TeachingLoad, EmploymentStatus, GenerationLog
 )
 from .serializers import (
     CustomTokenObtainPairSerializer, UserSerializer, SchoolSerializer, SchoolYearSerializer, TrackSerializer,
     StrandSerializer, GradeLevelSerializer, SubjectSerializer,
     TeacherSerializer, TeacherLoadLimitSerializer, TeacherSpecializationSerializer,
     SectionSerializer, SubjectOfferingSerializer, TeachingLoadSerializer,
-    EmploymentStatusSerializer
+    EmploymentStatusSerializer, GenerationLogSerializer
 )
 from .algorithm import run_greedy_allocation, run_backtracking_allocation, clear_generated_loads
 
@@ -217,3 +217,47 @@ class ClearGeneratedLoadsView(APIView):
         )
         return Response({'deleted_count': deleted_count}, status=status.HTTP_200_OK)
  
+
+ 
+ 
+class GenerationLogViewSet(viewsets.ModelViewSet):
+    """
+    Read-only on purpose - rows are only ever created internally by
+    run_greedy_allocation / run_backtracking_allocation, never posted
+    directly through the API.
+    """
+    queryset = GenerationLog.objects.all()
+    serializer_class = GenerationLogSerializer
+    http_method_names = ['get', 'head', 'options']
+ 
+    def get_queryset(self):
+        return GenerationLog.objects.filter(school_id=self.request.user.school_id_id)
+ 
+ 
+class GenerateLoadView(APIView):
+    """
+    POST /api/generate-load/
+ 
+    Now scopes Greedy to the requesting user's school too (previously
+    it processed every school in the database - see the earlier
+    multi-tenancy note), and passes the logged-in user through so each
+    run gets recorded in GenerationLog for ReportsPage's history table.
+    """
+ 
+    def post(self, request):
+        algorithm = request.data.get('algorithm', 'greedy')
+        school_id = request.user.school_id_id
+ 
+        if algorithm == 'backtracking':
+            results = run_backtracking_allocation(
+                school_id,
+                school_year=request.data.get('school_year'),
+                education_level=request.data.get('education_level'),
+                grade_level=request.data.get('grade_level'),
+                strand=request.data.get('strand'),
+                generated_by=request.user,
+            )
+        else:
+            results = run_greedy_allocation(school_id, generated_by=request.user)
+ 
+        return Response(results, status=status.HTTP_200_OK)
