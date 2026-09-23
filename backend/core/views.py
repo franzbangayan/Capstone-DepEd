@@ -261,3 +261,18 @@ class GenerateLoadView(APIView):
             results = run_greedy_allocation(school_id, generated_by=request.user)
  
         return Response(results, status=status.HTTP_200_OK)
+
+class ClearGenerationHistoryView(APIView):
+    """
+    POST /api/clear-generation-history/
+ 
+    Deletes every GenerationLog row for the logged-in user's school.
+    Does NOT touch TeachingLoad - this only clears the history table
+    on ReportsPage, not any actual assigned schedule.
+    """
+ 
+    def post(self, request):
+        deleted_count, _ = GenerationLog.objects.filter(
+            school_id=request.user.school_id_id
+        ).delete()
+        return Response({'deleted_count': deleted_count}, status=status.HTTP_200_OK)

@@ -11,21 +11,37 @@ const ReportsPage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [expandedId, setExpandedId] = useState(null)
+  const [clearing, setClearing] = useState(false)
+
+  const loadLogs = async () => {
+    setLoading(true)
+    try {
+      const res = await api.get('/api/generation-logs/')
+      setLogs(listData(res))
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Unable to load generation history.')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   useEffect(() => {
-    const loadLogs = async () => {
-      setLoading(true)
-      try {
-        const res = await api.get('/api/generation-logs/')
-        setLogs(listData(res))
-      } catch (err) {
-        setError(err?.response?.data?.detail || 'Unable to load generation history.')
-      } finally {
-        setLoading(false)
-      }
-    }
     loadLogs()
   }, [])
+
+  const handleClearHistory = async () => {
+    if (!window.confirm('Clear all generation history? This only removes the log entries below, not any actual teaching loads.')) return
+    setClearing(true)
+    try {
+      await api.post('/api/clear-generation-history/')
+      setExpandedId(null)
+      await loadLogs()
+    } catch (err) {
+      setError(err?.response?.data?.detail || 'Unable to clear generation history.')
+    } finally {
+      setClearing(false)
+    }
+  }
 
   const toggleExpand = (logId) => {
     setExpandedId((current) => (current === logId ? null : logId))
@@ -94,7 +110,14 @@ const ReportsPage = ({ onNavigate }) => {
 
       {/* History table - now real data */}
       <div className="card card-body">
-        <div className="section-title">Generated Load History</div>
+        <div className="row-between">
+          <div className="section-title">Generated Load History</div>
+          {logs.length > 0 && (
+            <button className="btn btn-outline btn-sm" onClick={handleClearHistory} disabled={clearing}>
+              {clearing ? 'Clearing…' : 'Clear History'}
+            </button>
+          )}
+        </div>
         <div className="table-wrap report-history-table">
           <table className="data-table">
             <thead>
