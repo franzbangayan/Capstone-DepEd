@@ -2,6 +2,7 @@ import '../styles/TeachersPage.css'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IconSearch, IconChevronDown, IconPlus, IconEdit, IconTrash } from '../components/Icons'
 import TeacherFormModal from '../modals/TeacherFormModal'
+import ImportTeachersModal from '../modals/ImportTeachersModal'
 import api from '../api'
 
 const ACTIVE_DATE = '9999-12-31'
@@ -19,6 +20,7 @@ const TeachersPage = () => {
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
   const [showModal, setShowModal] = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [editingTeacher, setEditingTeacher] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -126,6 +128,7 @@ const TeachersPage = () => {
           <IconChevronDown />
         </div>
 
+        <button className="btn btn-outline" onClick={() => setShowImportModal(true)}>Import</button>
         <button className="btn btn-primary" onClick={openAdd}><IconPlus /> Add Teacher</button>
       </div>
 
@@ -182,6 +185,15 @@ const TeachersPage = () => {
             setShowModal(false)
             setEditingTeacher(null)
           }}
+          onSaved={loadTeachers}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportTeachersModal
+          subjects={subjects}
+          employmentStatuses={employmentStatuses}
+          onClose={() => setShowImportModal(false)}
           onSaved={loadTeachers}
         />
       )}

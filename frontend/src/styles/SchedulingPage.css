@@ -88,3 +88,61 @@
 
 .sched-sub { margin-bottom: 20px; }
 .sched-preview-header { margin-bottom: 16px; }
+.paper-sheet-inline {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: #1f2933;
+  padding: 8px 4px;
+}
+ 
+.paper-letterhead {
+  text-align: center;
+  border-bottom: 2px solid #1f2933;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+ 
+.paper-letterhead h1 {
+  margin: 0;
+  font-size: 1.3rem;
+  letter-spacing: 0.02em;
+}
+ 
+.paper-letterhead p {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: #52606d;
+}
+ 
+.paper-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+ 
+.paper-table th {
+  text-align: left;
+  border-bottom: 2px solid #1f2933;
+  padding: 8px 6px;
+  font-weight: 600;
+}
+ 
+.paper-table td {
+  border-bottom: 1px solid #d1d5db;
+  padding: 8px 6px;
+}
+ 
+.paper-table .right {
+  text-align: right;
+}
+ 
+.paper-empty {
+  text-align: center;
+  color: #9aa5b1;
+  font-style: italic;
+  padding: 24px 0;
+}
+ 
+.paper-unresolved {
+  margin-top: 28px;
+}
+ 

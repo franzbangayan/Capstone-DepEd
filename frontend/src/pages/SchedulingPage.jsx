@@ -2,7 +2,6 @@ import '../styles/SchedulingPage.css'
 import { useState, useEffect } from 'react'
 import api from '../api'
 import { IconZap, IconChevronDown, IconCheck, IconAlert, IconLayers } from '../components/Icons'
-import ReviewScheduleModal from '../modals/ReviewScheduleModal'
 
 const GRADE_LEVELS_BY_LEVEL = {
   All:                  ['All Levels'],
@@ -26,8 +25,8 @@ const listData = (response) => (
 )
 
 const SchedulingPage = () => {
-  const [schoolYears,   setSchoolYears]   = useState([])   // real rows from /api/school-years/
-  const [schoolYearId,  setSchoolYearId]  = useState('')   // actual school_year_id, not a parsed string
+  const [schoolYears,   setSchoolYears]   = useState([])
+  const [schoolYearId,  setSchoolYearId]  = useState('')
   const [loadingYears,  setLoadingYears]  = useState(true)
 
   const [eduLevel,   setEduLevel]   = useState('Junior High School')
@@ -36,7 +35,7 @@ const SchedulingPage = () => {
 
   const [generating, setGenerating] = useState(false)
   const [error, setError]           = useState(null)
-  const [results, setResults]       = useState(null)   // response body -> opens the modal when set
+  const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
 
   const isAll = eduLevel === 'All'
   const isSHS = eduLevel === 'Senior High School'
@@ -48,7 +47,6 @@ const SchedulingPage = () => {
         const res = await api.get('/api/school-years/')
         const years = listData(res)
         setSchoolYears(years)
-        // Default to the active school year if one exists, else the first row.
         const active = years.find((y) => y.is_active)
         setSchoolYearId(String((active || years[0])?.school_year_id || ''))
       } catch (err) {
@@ -74,6 +72,7 @@ const SchedulingPage = () => {
   const handleGenerate = async () => {
     setGenerating(true)
     setError(null)
+    setResults(null)
     try {
       if (!selectedSchoolYear) {
         setError('Select a school year first.')
@@ -97,12 +96,19 @@ const SchedulingPage = () => {
     }
   }
 
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const assigned = results?.assigned || []
+  const skipped = results?.skipped || []
+
   return (
     <div className="screen">
       <div className="sched-layout">
 
         {/* Left: Parameters */}
-        <div className="stack">
+        <div className="stack no-print">
 
           <div className="card card-body">
             <div className="section-title">Scheduling Parameters</div>
@@ -233,66 +239,119 @@ const SchedulingPage = () => {
 
         </div>
 
-        {/* Right: Preview */}
+        {/* Right: Preview - switches from Subject Offerings to the generated schedule */}
         <div className="card card-body">
-          <div className="row-between sched-preview-header">
+          <div className="row-between sched-preview-header no-print">
             <div>
-              <div className="section-title">Subject Offerings Preview</div>
+              <div className="section-title">
+                {results ? 'Generated Teaching Load' : 'Subject Offerings Preview'}
+              </div>
               <div className="section-sub">
-                {isAll
-                  ? 'All Levels — Elementary, JHS, SHS'
-                  : eduLevel + ' · ' + gradeLevel + (isSHS && strand !== 'N/A' ? ' · ' + strand : '')
+                {results
+                  ? `${assigned.length} periods scheduled · ${skipped.length} unresolved`
+                  : (isAll
+                      ? 'All Levels — Elementary, JHS, SHS'
+                      : eduLevel + ' · ' + gradeLevel + (isSHS && strand !== 'N/A' ? ' · ' + strand : ''))
+                      + (selectedSchoolYear ? ` · S.Y. ${selectedSchoolYear.year_start}–${selectedSchoolYear.year_end}` : '')
                 }
-                {selectedSchoolYear ? ` · S.Y. ${selectedSchoolYear.year_start}–${selectedSchoolYear.year_end}` : ''}
               </div>
             </div>
-            <div className="readonly-badge">
-              <IconLayers /> Read-only
-            </div>
-          </div>
-
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Type</th>
-                  <th className="right">Hrs/Wk</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colSpan={3} className="table-empty-cell">
-                    No subject offerings configured. Set up subjects in Curriculum Setup first.
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={2} className="preview-total-label">Total Weekly Hours</td>
-                  <td className="td-right preview-total-value">0h</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-
-          <div className="info-box">
-            <IconAlert />
-            <div>
-              <div className="info-box-title">Before Generating</div>
-              <div className="info-box-text">
-                Ensure all teachers have complete specialization records and that sections are properly
-                configured in Curriculum Setup. The system will flag unresolvable conflicts for manual review.
+            {results ? (
+              <button className="btn btn-primary btn-sm" onClick={handlePrint}>Print</button>
+            ) : (
+              <div className="readonly-badge">
+                <IconLayers /> Read-only
               </div>
-            </div>
+            )}
           </div>
+
+          {results ? (
+            <div id="printable-schedule" className="paper-sheet-inline">
+              <div className="paper-letterhead">
+                <h1>Teaching Load Schedule</h1>
+                <p>Generated {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+
+              <table className="paper-table">
+                <thead>
+                  <tr>
+                    <th>Teacher</th>
+                    <th>Section</th>
+                    <th>Subject</th>
+                    <th className="right">Hrs/Wk</th>
+                    <th className="right">Periods</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {assigned.length === 0 ? (
+                    <tr><td colSpan={5} className="paper-empty">Nothing was assigned.</td></tr>
+                  ) : (
+                    assigned.map((a, i) => (
+                      <tr key={i}>
+                        <td>{a.teacher}</td>
+                        <td>{a.section}</td>
+                        <td>{a.subject}</td>
+                        <td className="right">{a.hours_assigned}</td>
+                        <td className="right">{a.periods_scheduled ?? '—'}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {skipped.length > 0 && (
+                <div className="paper-unresolved">
+                  <h2>Unresolved</h2>
+                  <ul>
+                    {skipped.map((s, i) => (
+                      <li key={i}>{s.section} — {s.subject}: {s.reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Subject</th>
+                      <th>Type</th>
+                      <th className="right">Hrs/Wk</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={3} className="table-empty-cell">
+                        No subject offerings configured. Set up subjects in Curriculum Setup first.
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2} className="preview-total-label">Total Weekly Hours</td>
+                      <td className="td-right preview-total-value">0h</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="info-box">
+                <IconAlert />
+                <div>
+                  <div className="info-box-title">Before Generating</div>
+                  <div className="info-box-text">
+                    Ensure all teachers have complete specialization records and that sections are properly
+                    configured in Curriculum Setup. The system will flag unresolvable conflicts for manual review.
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
         </div>
       </div>
-
-      {results && (
-        <ReviewScheduleModal results={results} onClose={() => { setResults(null) }} />
-      )}
     </div>
   )
 }
