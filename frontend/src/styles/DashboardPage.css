@@ -159,3 +159,63 @@
   color: #94a3b8;
   margin-top: 20px;
 }
+.workload-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+ 
+.workload-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 64px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+}
+ 
+.workload-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #334155;
+}
+ 
+.workload-track {
+  position: relative;
+  height: 10px;
+  background: #f1f5f9;
+  border-radius: 6px;
+  overflow: hidden;
+}
+ 
+.workload-track-max {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #e2e8f0;
+}
+ 
+.workload-track-assigned {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 6px;
+  transition: width 0.2s ease;
+}
+ 
+.workload-track-assigned.over {
+  background: #ef4444;
+}
+ 
+.workload-figure {
+  text-align: right;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+ 

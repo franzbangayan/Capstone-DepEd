@@ -6,35 +6,92 @@ import '../styles/DashboardPage.css'
 import '../styles/App.css'
 import { useSchool } from "../contexts/SchoolContext.jsx"
 
+const ACTIVE_DATE = '9999-12-31'
+
+const listData = (response) => (
+  Array.isArray(response.data) ? response.data : response.data.results || []
+)
+
 const DashboardPage = () => {
   const navigate = useNavigate()
-    const [teacherCount, setTeacherCount] = useState()  
-    const [sectionCount, setSectionCount] = useState()
-    const { refresh, schoolYear } = useSchool();
+  const [teacherCount, setTeacherCount] = useState()
+  const [sectionCount, setSectionCount] = useState()
+  const [workload, setWorkload] = useState([])          // [{ name, assigned, max }]
+  const [unassignedCount, setUnassignedCount] = useState(null)
+  const { refresh, schoolYear } = useSchool();
 
-useEffect(() => {
+  useEffect(() => {
 
-  const fetchData = async () => {
-    try {
-      const [teachers, sections] = await Promise.all([
-        api.get("/api/teachers/"),
-        api.get("/api/sections/"),
-      ])
+    const fetchData = async () => {
+      try {
+        const [teachersRes, sectionsRes, loadLimitsRes, teachingLoadsRes, offeringsRes, logsRes] = await Promise.all([
+          api.get("/api/teachers/"),
+          api.get("/api/sections/"),
+          api.get("/api/teacher-load-limits/"),
+          api.get("/api/teaching-loads/"),
+          api.get("/api/subject-offerings/"),
+          api.get("/api/generation-logs/"),
+        ])
 
-      setTeacherCount(teachers.data.length)
-      setSectionCount(sections.data.length)
+        const teachers = listData(teachersRes)
+        const sections = listData(sectionsRes)
+        const loadLimits = listData(loadLimitsRes)
+        const teachingLoads = listData(teachingLoadsRes)
+        const offerings = listData(offeringsRes)
+        const logs = listData(logsRes)
 
-    } catch (err) {
-      console.error(err)
+        setTeacherCount(teachers.length)
+        setSectionCount(sections.length)
+
+        // TeachingLoad only stores an offering id, not its hours - need
+        // this map to know how many hours each assigned row is worth.
+        const hoursByOfferingId = Object.fromEntries(
+          offerings.map((o) => [o.offering_id, o.hours_per_week])
+        )
+
+        const computed = teachers
+          .map((teacher) => {
+            const activeLimit = loadLimits.find(
+              (l) => Number(l.teacher) === Number(teacher.teacher_id) && l.date_ended === ACTIVE_DATE
+            )
+            const maxHours = activeLimit?.max_load_hours ?? 0
+
+            const assignedHours = teachingLoads
+              .filter((load) => Number(load.teacher) === Number(teacher.teacher_id))
+              .reduce((sum, load) => sum + (hoursByOfferingId[load.offering] || 0), 0)
+
+            return {
+              name: `${teacher.last_name}, ${teacher.first_name}`,
+              assigned: assignedHours,
+              max: maxHours,
+            }
+          })
+          // Teachers with no active load limit on record can't be
+          // meaningfully plotted against a max - skip them here rather
+          // than show a bar with no scale.
+          .filter((t) => t.max > 0)
+
+        setWorkload(computed)
+
+        // Unassigned Loads = skipped_count from the most recent
+        // generation run, if any has happened yet.
+        if (logs.length > 0) {
+          const mostRecent = [...logs].sort(
+            (a, b) => new Date(b.generated_at) - new Date(a.generated_at)
+          )[0]
+          setUnassignedCount(mostRecent.skipped_count)
+        }
+      } catch (err) {
+        console.error(err)
+      }
     }
-  }
 
-  refresh();
-  fetchData()
+    refresh();
+    fetchData()
 
-}, [])
+  }, [])
 
-
+  const maxScale = Math.max(1, ...workload.map((t) => t.max))
 
   return (
     <div className="screen stack">
@@ -46,7 +103,7 @@ useEffect(() => {
             <IconUsers />
           </div>
           <div>
-            <div className="stat-value">{teacherCount === null ? "--" : teacherCount}</div>
+            <div className="stat-value">{teacherCount == null ? "--" : teacherCount}</div>
             <div className="stat-label">Total Teachers</div>
           </div>
         </div>
@@ -56,7 +113,7 @@ useEffect(() => {
             <IconSchool />
           </div>
           <div>
-            <div className="stat-value">{sectionCount === null ? "--" : sectionCount}</div>
+            <div className="stat-value">{sectionCount == null ? "--" : sectionCount}</div>
             <div className="stat-label">Total Sections</div>
           </div>
         </div>
@@ -66,7 +123,7 @@ useEffect(() => {
             <IconAlert />
           </div>
           <div>
-            <div className="stat-value alert">--</div>
+            <div className="stat-value alert">{unassignedCount == null ? "--" : unassignedCount}</div>
             <div className="stat-label">Unassigned Loads</div>
           </div>
         </div>
@@ -97,9 +154,33 @@ useEffect(() => {
               <span className="legend-dot remaining" /> Remaining
             </div>
           </div>
-          <div className="chart-empty-state">
-            No workload data available. Generate a teaching load to see results here.
-          </div>
+
+          {workload.length === 0 ? (
+            <div className="chart-empty-state">
+              No workload data available. Generate a teaching load to see results here.
+            </div>
+          ) : (
+            <div className="workload-bars">
+              {workload.map((t, i) => {
+                const assignedPct = Math.min(100, (t.assigned / maxScale) * 100)
+                const maxPct = Math.min(100, (t.max / maxScale) * 100)
+                const overLimit = t.assigned > t.max
+                return (
+                  <div key={i} className="workload-row">
+                    <div className="workload-name" title={t.name}>{t.name}</div>
+                    <div className="workload-track">
+                      <div className="workload-track-max" style={{ width: `${maxPct}%` }} />
+                      <div
+                        className={overLimit ? "workload-track-assigned over" : "workload-track-assigned"}
+                        style={{ width: `${assignedPct}%` }}
+                      />
+                    </div>
+                    <div className="workload-figure">{t.assigned}/{t.max}h</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Side panel */}
