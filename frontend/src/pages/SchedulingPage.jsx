@@ -82,7 +82,7 @@ const SchedulingPage = () => {
       }
 
       const res = await api.post('/api/generate-load/', {
-        algorithm: 'backtracking',
+        algorithm: 'greedy',
         school_year: selectedSchoolYear.year_start,
         education_level: eduLevel,
         grade_level: gradeLevel,

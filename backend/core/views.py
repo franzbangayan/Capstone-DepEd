@@ -183,58 +183,6 @@ class LoginView(APIView):
 from .algorithm import run_greedy_allocation, run_backtracking_allocation
 
 class GenerateLoadView(APIView):
-    def post(self, request):
-        algorithm = request.data.get('algorithm', 'greedy')
-        if algorithm == 'backtracking':
-            results = run_backtracking_allocation(
-                request.user.school_id_id,
-                school_year=request.data.get('school_year'),
-                education_level=request.data.get('education_level'),
-                grade_level=request.data.get('grade_level'),
-                strand=request.data.get('strand'),
-            )
-        else:
-            results = run_greedy_allocation()
-        return Response(results, status=status.HTTP_200_OK)
-
-
-class ClearGeneratedLoadsView(APIView):
-    """
-    POST /api/clear-generated-loads/
-    Same body shape as /api/generate-load/ (school_year, education_level,
-    grade_level, strand). Deletes only algorithm-generated TeachingLoad
-    rows (is_manual_override=False) in that scope, so Generate can be
-    run again from a clean slate - manual overrides are left alone.
-    """
- 
-    def post(self, request):
-        deleted_count = clear_generated_loads(
-            request.user.school_id_id,
-            school_year=request.data.get('school_year'),
-            education_level=request.data.get('education_level'),
-            grade_level=request.data.get('grade_level'),
-            strand=request.data.get('strand'),
-        )
-        return Response({'deleted_count': deleted_count}, status=status.HTTP_200_OK)
- 
-
- 
- 
-class GenerationLogViewSet(viewsets.ModelViewSet):
-    """
-    Read-only on purpose - rows are only ever created internally by
-    run_greedy_allocation / run_backtracking_allocation, never posted
-    directly through the API.
-    """
-    queryset = GenerationLog.objects.all()
-    serializer_class = GenerationLogSerializer
-    http_method_names = ['get', 'head', 'options']
- 
-    def get_queryset(self):
-        return GenerationLog.objects.filter(school_id=self.request.user.school_id_id)
- 
- 
-class GenerateLoadView(APIView):
     """
     POST /api/generate-load/
  
@@ -258,7 +206,14 @@ class GenerateLoadView(APIView):
                 generated_by=request.user,
             )
         else:
-            results = run_greedy_allocation(school_id, generated_by=request.user)
+            results = run_greedy_allocation(
+                school_id,
+                school_year=request.data.get('school_year'),
+                education_level=request.data.get('education_level'),
+                grade_level=request.data.get('grade_level'),
+                strand=request.data.get('strand'),
+                generated_by=request.user,
+            )
  
         return Response(results, status=status.HTTP_200_OK)
 
@@ -276,3 +231,42 @@ class ClearGenerationHistoryView(APIView):
             school_id=request.user.school_id_id
         ).delete()
         return Response({'deleted_count': deleted_count}, status=status.HTTP_200_OK)
+
+
+class ClearGeneratedLoadsView(APIView):
+    """
+    POST /api/clear-generated-loads/
+
+    Deletes only algorithm-generated TeachingLoad rows
+    (is_manual_override=False) within the selected scope.
+    Manual overrides are preserved.
+    """
+
+    def post(self, request):
+        deleted_count = clear_generated_loads(
+            request.user.school_id_id,
+            school_year=request.data.get('school_year'),
+            education_level=request.data.get('education_level'),
+            grade_level=request.data.get('grade_level'),
+            strand=request.data.get('strand'),
+        )
+
+        return Response(
+            {'deleted_count': deleted_count},
+            status=status.HTTP_200_OK
+        )
+
+
+class GenerationLogViewSet(viewsets.ModelViewSet):
+    """
+    Read-only access to generation history.
+    """
+
+    queryset = GenerationLog.objects.all()
+    serializer_class = GenerationLogSerializer
+    http_method_names = ['get', 'head', 'options']
+
+    def get_queryset(self):
+        return GenerationLog.objects.filter(
+            school_id=self.request.user.school_id_id
+        )

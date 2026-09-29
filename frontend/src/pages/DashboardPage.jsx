@@ -56,9 +56,17 @@ const DashboardPage = () => {
             )
             const maxHours = activeLimit?.max_load_hours ?? 0
 
+            // TEACHING_LOAD stores one row per scheduled period. Count each
+            // teacher + section + offering assignment only once for weekly workload.
+            const countedAssignments = new Set()
             const assignedHours = teachingLoads
               .filter((load) => Number(load.teacher) === Number(teacher.teacher_id))
-              .reduce((sum, load) => sum + (hoursByOfferingId[load.offering] || 0), 0)
+              .reduce((sum, load) => {
+                const key = `${load.section}-${load.offering}`
+                if (countedAssignments.has(key)) return sum
+                countedAssignments.add(key)
+                return sum + (hoursByOfferingId[load.offering] || 0)
+              }, 0)
 
             return {
               name: `${teacher.last_name}, ${teacher.first_name}`,
