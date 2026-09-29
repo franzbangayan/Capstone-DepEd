@@ -37,6 +37,7 @@ const SchedulingPage = () => {
   const [clearing, setClearing]     = useState(false)
   const [error, setError]           = useState(null)
   const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
+  const [algorithm, setAlgorithm] = useState('greedy')
 
   const isAll = eduLevel === 'All'
   const isSHS = eduLevel === 'Senior High School'
@@ -82,7 +83,7 @@ const SchedulingPage = () => {
       }
 
       const res = await api.post('/api/generate-load/', {
-        algorithm: 'greedy',
+        algorithm: algorithm,
         school_year: selectedSchoolYear.year_start,
         education_level: eduLevel,
         grade_level: gradeLevel,
@@ -259,6 +260,10 @@ const SchedulingPage = () => {
 
           <button className="proceed-btn" onClick={handleGenerate} disabled={generating}>
             <IconZap /> {generating ? 'Generating...' : 'Generate Teaching Load'}
+          </button>
+
+          <button className="btn btn-outline btn-full" onClick={() => setAlgorithm(algorithm === 'greedy' ? 'backtracking' : 'greedy')} disabled={clearing || generating}>
+            Toggle Algorithm: {algorithm === 'greedy' ? 'Greedy' : 'Backtracking'}
           </button>
 
           <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
