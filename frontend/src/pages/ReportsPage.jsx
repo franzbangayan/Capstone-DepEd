@@ -18,6 +18,7 @@ const ReportsPage = ({ onNavigate }) => {
     try {
       const res = await api.get('/api/generation-logs/')
       setLogs(listData(res))
+      console.log("LOGS: ", logs);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Unable to load generation history.')
     } finally {
@@ -166,6 +167,9 @@ const ReportsPage = ({ onNavigate }) => {
                                   <th>Teacher</th>
                                   <th>Section</th>
                                   <th>Subject</th>
+                                  <th>Day</th>
+                                  <th>Time</th>
+                                  <th>Room</th>
                                   <th className="right">Hrs/Wk</th>
                                 </tr>
                               </thead>
@@ -178,6 +182,9 @@ const ReportsPage = ({ onNavigate }) => {
                                       <td>{a.teacher}</td>
                                       <td>{a.section}</td>
                                       <td>{a.subject}</td>
+                                      <td>{a.schedule[0].day}</td>
+                                      <td>{a.schedule[0].time_start} - {a.schedule[0].time_end}</td>
+                                      <td>{a.schedule[0].room}</td>
                                       <td className="right">{a.hours_assigned}</td>
                                     </tr>
                                   ))

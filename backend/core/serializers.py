@@ -165,19 +165,27 @@ class TeachingLoadSerializer(serializers.ModelSerializer):
                     f"Add a TeacherLoadLimit entry before assigning a load."
                 )
 
-            # Get every OTHER teaching load already assigned to this teacher.
+            # TEACHING_LOAD stores one row per scheduled period. An offering
+            # may therefore appear several times for the same teacher.
+            # Count each teacher + section + offering assignment only once
+            # when calculating weekly load.
             existing_loads = TeachingLoad.objects.filter(teacher=teacher)
 
-            # If we're editing an existing record, exclude itself from the
-            # count (otherwise it would double-count its own hours).
             if self.instance:
                 existing_loads = existing_loads.exclude(load_id=self.instance.load_id)
 
-            # Add up hours_per_week from every one of the teacher's other
-            # subject offerings, then add the new one being requested.
-            current_hours = sum(load.offering.hours_per_week for load in existing_loads)
-            new_total = current_hours + offering.hours_per_week
+            assignment_keys = set()
+            current_hours = 0
 
+            for load in existing_loads.select_related('offering'):
+                key = (load.section_id, load.offering_id)
+                if key in assignment_keys:
+                    continue
+
+                assignment_keys.add(key)
+                current_hours += load.offering.hours_per_week
+
+            new_total = current_hours + offering.hours_per_week
             if new_total > current_limit.max_load_hours:
                 raise serializers.ValidationError(
                     f"This assignment would give {teacher.full_name} "

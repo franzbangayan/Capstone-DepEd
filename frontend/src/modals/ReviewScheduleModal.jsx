@@ -19,7 +19,7 @@ const ReviewScheduleModal = ({ results, onClose }) => {
         <div className="review-toolbar no-print">
           <div>
             <h2>Generated Teaching Load</h2>
-            <p>{assigned.length} periods scheduled · {skipped.length} unresolved</p>
+            <p>{assigned.reduce((sum, item) => sum + (item.periods_scheduled || 0), 0)} periods scheduled · {skipped.length} unresolved</p>
           </div>
           <div className="review-toolbar-actions">
             <button className="btn btn-primary btn-sm" onClick={handlePrint}>Print</button>
