@@ -150,7 +150,7 @@ class Teacher(models.Model):
     gender = models.CharField(max_length=10, choices=GENDER_CHOICES, blank=True, null=True)
     birthdate = models.DateField(blank=True, null=True)
 
-    house_no_street = models.CharField(max_length=150, blank=True, null=True)
+    house_no_street = models.CharField(max_length=150, blank=True, null=True)z  
     barangay = models.CharField(max_length=100, blank=True, null=True)
     city_municipality = models.CharField(max_length=100, blank=True, null=True)
     province = models.CharField(max_length=100, blank=True, null=True)

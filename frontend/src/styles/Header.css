@@ -1,46 +1,20 @@
-/* ─── Header ─────────────────────────────────────────────────────────────── */
-
 .header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 28px;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 0 28px; height: 60px; flex-shrink: 0;
+  background: #fff; border-bottom: 2px solid var(--navy);
+  position: sticky; top: 0; z-index: 10;
 }
-
-.header-title { font-size: 18px; font-weight: 600; color: var(--text-900); }
-.header-sub { font-size: 12px; color: var(--text-500); margin-top: 2px; }
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+.header-title { font-size: 17px; font-weight: 700; color: var(--navy); }
+.header-sub { font-size: 12px; color: var(--muted); margin-top: 1px; }
+.header-right { display: flex; align-items: center; gap: 16px; }
 .header-school { text-align: right; }
-.header-school-name {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-700);
-  text-transform: uppercase;
-  letter-spacing: .1em;
-}
-.header-school-year { font-size: 10px; color: var(--text-400); }
-
-.header-divider { width: 1px; height: 32px; background: var(--border); }
-
+.header-school-name { font-size: 12px; font-weight: 700; color: var(--navy); text-transform: uppercase; letter-spacing: .08em; }
+.header-school-year { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.header-divider { width: 1px; height: 30px; background: var(--border-soft); }
 .header-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
-  border-radius: var(--radius-full);
-  padding: 4px 12px;
+  display: flex; align-items: center; gap: 6px; background: #f0fdf4;
+  border: 1px solid #bbf7d0; border-radius: 4px; padding: 3px 10px;
 }
-.header-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green-500); }
-.header-status-label { font-size: 12px; font-weight: 500; color: #15803d; }
+.header-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+.header-status-label { font-size: 11px; font-weight: 600; color: #15803d; }
+@media (max-width: 900px) { .header-sub { display: none; } }

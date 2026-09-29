@@ -1,108 +1,19 @@
-/* ─── Login ──────────────────────────────────────────────────────────────── */
-
-.login-bg {
-  min-height: 100vh;
-  background: #f1f5f9;
-  background-image:
-    radial-gradient(circle at 30% 20%, #dbeafe 0%, transparent 50%),
-    radial-gradient(circle at 80% 80%, #e0e7ff 0%, transparent 50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.login-card-wrap { width: 100%; max-width: 360px; }
-
-.login-card {
-  background: #ffffff;
-  border: 1px solid rgba(226,232,240,.6);
-  border-radius: 18px;
-  box-shadow: 0 20px 48px rgba(15,39,68,.18);
-  overflow: hidden;
-}
-
-.login-stripe {
-  height: 4px;
-  background: linear-gradient(90deg, #2563eb, #3b82f6, #6366f1);
-}
-
+.login-bg { min-height: 100vh; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.login-card-wrap { width: 100%; max-width: 380px; }
+.login-card { background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 28px rgba(0,42,84,.12); overflow: hidden; }
+.login-stripe { height: 5px; background: linear-gradient(90deg, var(--navy) 0 70%, var(--red) 70% 100%); }
 .login-body { padding: 32px; }
-
-.login-logo-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 32px;
-}
-
-.login-logo-icon {
-  width: 56px;
-  height: 56px;
-  background: #0f2744;
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-  box-shadow: 0 4px 16px rgba(15,39,68,.3);
-}
-
-.login-app-name {
-  font-size: 17px;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: -.01em;
-}
-
-.login-school {
-  font-size: 10px;
-  font-weight: 500;
-  color: #64748b;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  margin-top: 2px;
-}
-
-.login-heading {
-  text-align: center;
-  margin-bottom: 24px;
-}
-.login-heading h2 { font-size: 20px; font-weight: 600; color: #0f172a; }
-.login-heading p  { font-size: 13px; color: #64748b; margin-top: 4px; }
-
-.login-error {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 20px;
-}
-.login-error svg { width: 16px; height: 16px; color: #ef4444; flex-shrink: 0; margin-top: 1px; }
-.login-error p   { font-size: 13px; color: #b91c1c; }
-
+.login-logo-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
+.login-logo-icon { width: 52px; height: 52px; background: var(--navy); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+.login-app-name { font-size: 18px; font-weight: 700; color: var(--navy); }
+.login-heading { text-align: center; margin-bottom: 22px; }
+.login-heading h2 { font-size: 19px; font-weight: 600; color: #0f172a; }
+.login-heading p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.login-error { display: flex; align-items: flex-start; gap: 10px; background: var(--red-tint); border: 1px solid #fecaca; border-left: 3px solid var(--red); border-radius: var(--radius-sm); padding: 10px 14px; margin-bottom: 18px; }
+.login-error svg { width: 16px; height: 16px; color: var(--red); flex-shrink: 0; margin-top: 1px; }
+.login-error p { font-size: 13px; color: #991b1b; }
 .login-form { display: flex; flex-direction: column; gap: 16px; }
-
-.login-submit {
-  width: 100%;
-  background: #2563eb;
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 10px;
-  border-radius: 10px;
-  margin-top: 4px;
-  transition: background .15s;
-}
-.login-submit:hover:not(:disabled) { background: #1d4ed8; }
-.login-submit:disabled { background: #60a5fa; cursor: not-allowed; }
-
-.login-footer {
-  text-align: center;
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 24px;
-}
+.login-submit { width: 100%; background: var(--navy); color: #fff; font-size: 14px; font-weight: 600; padding: 11px; border-radius: var(--radius-sm); margin-top: 4px; transition: background .12s; }
+.login-submit:hover:not(:disabled) { background: var(--navy-dark); }
+.login-submit:disabled { background: #6b9ac4; cursor: not-allowed; }
+.login-footer { text-align: center; font-size: 11px; color: var(--faint); margin-top: 20px; }

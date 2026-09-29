@@ -1,110 +1,69 @@
-/* ─── Sidebar ────────────────────────────────────────────────────────────── */
-
+/* Written for the existing Sidebar markup. The "Department of Education" line,
+   "Main Menu" heading and tagline are drawn with ::before/::after so no JSX change is needed. */
 .sidebar {
-  width: 240px;
-  flex-shrink: 0;
-  background: var(--navy-900);
-  height: 100vh;
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  
+  width: 240px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+  display: flex; flex-direction: column;
+  background: var(--navy); border-right: 1px solid var(--navy-dark);
 }
 
 .sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 20px;
-  border-bottom: 1px solid rgba(255,255,255,.1);
+  position: relative; display: flex; align-items: center; gap: 8px;
+  padding: 36px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.sidebar-logo::before {
+  content: 'Department of Education'; position: absolute; top: 14px; left: 18px;
+  font-size: 9px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5);
+}
+/* Logo mark: hide the dark tile, recolor the four squares */
+.sidebar-logo svg { width: 34px; height: 34px; flex-shrink: 0; margin-left: -6px; }
+.sidebar-logo svg rect:nth-child(1) { fill: transparent; }
+.sidebar-logo svg rect:nth-child(2) { fill: #ffffff; }
+.sidebar-logo svg rect:nth-child(3) { fill: #BF2026; }
+.sidebar-logo svg rect:nth-child(4) { fill: #BF2026; }
+.sidebar-logo svg rect:nth-child(5) { fill: #93c5fd; }
+
+.sidebar-logo-text { min-width: 0; }
+.sidebar-logo-name { color: #fff; font-size: 17px; font-weight: 700; line-height: 1.15; }
+/* Replaces the "Admin System" text with the tagline from the design.
+   Delete these two rules to show the original JSX text again. */
+.sidebar-logo-tag { font-size: 0; margin-top: 3px; }
+.sidebar-logo-tag::after {
+  content: 'Loading & Assignment System'; display: block; max-width: 130px;
+  font-size: 9px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; line-height: 1.45;
+  color: rgba(255,255,255,.6);
 }
 
-.sidebar-logo-text { line-height: 1.2; }
-.sidebar-logo-name {
-  color: #fff;
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: .02em;
+.sidebar-nav { flex: 1; padding: 10px 0; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; }
+.sidebar-nav::before {
+  content: 'Main Menu'; padding: 12px 18px 6px;
+  font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.4);
 }
-.sidebar-logo-tag {
-  color: var(--blue-400);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-}
-
-.sidebar-nav {
-  flex: 1;
-  padding: 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  overflow-y: auto;
-}
-
 .nav-btn {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: var(--radius);
-  font-size: 14px;
-  font-weight: 500;
-  color: #94a3b8;
-  transition: background .15s, color .15s;
-  text-align: left;
-  width: 100%;
-  text-decoration: none;
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 18px; font-size: 14px; font-weight: 400; text-decoration: none;
+  color: rgba(255,255,255,.75); border-left: 3px solid transparent;
+  transition: background .12s, color .12s;
 }
-.nav-btn:hover { background: rgba(255,255,255,.07); color: #fff; }
-.nav-btn.active { background: var(--blue-600); color: #fff; box-shadow: 0 1px 4px rgba(37,99,235,.4); }
-.nav-btn .nav-icon { width: 18px; height: 18px; flex-shrink: 0; color: #64748b; }
-.nav-btn.active .nav-icon { color: #fff; }
-.nav-btn:hover .nav-icon { color: #cbd5e1; }
+.nav-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav-btn.active { background: rgba(255,255,255,.14); color: #fff; font-weight: 600; border-left-color: var(--red); }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: .7; display: flex; }
+.nav-icon svg { width: 100%; height: 100%; }
+.nav-btn.active .nav-icon, .nav-btn:hover .nav-icon { opacity: 1; }
 
-.sidebar-footer {
-  padding: 12px;
-  border-top: 1px solid rgba(255,255,255,.1);
-}
-
-.sidebar-user {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  margin-bottom: 4px;
-}
-
+.sidebar-footer { padding: 10px 0; border-top: 1px solid rgba(255,255,255,.12); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
 .sidebar-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  background: var(--blue-600);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 4px; background: rgba(255,255,255,.18);
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700;
 }
-
-.sidebar-user-name { color: #fff; font-size: 12px; font-weight: 500; }
-.sidebar-user-role { color: #64748b; font-size: 10px; }
-
+.sidebar-user-name { color: #fff; font-size: 13px; font-weight: 600; }
+.sidebar-user-role { color: rgba(255,255,255,.5); font-size: 11px; }
 .sidebar-logout {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 500;
-  transition: background .15s, color .15s;
-  width: 100%;
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 18px;
+  color: rgba(255,255,255,.6); font-size: 13px; border-left: 3px solid transparent;
+  transition: background .12s, color .12s;
 }
-.sidebar-logout:hover { background: rgba(255,255,255,.07); color: #fff; }
+.sidebar-logout:hover { background: rgba(255,255,255,.08); color: #fff; }
 .sidebar-logout svg { width: 16px; height: 16px; }
+
+@media (max-width: 800px) { .sidebar { width: 200px; } }
