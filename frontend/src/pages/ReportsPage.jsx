@@ -6,6 +6,33 @@ const listData = (response) => (
   Array.isArray(response.data) ? response.data : response.data.results || []
 )
 
+// Same flattening as SchedulingPage - backend groups periods under each
+// assignment (assignment.schedule = [...]); flatten for the flat table view.
+const formatTime = (t) => {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const displayHour = h % 12 === 0 ? 12 : h % 12
+  return `${displayHour}:${String(m).padStart(2, '0')} ${period}`
+}
+
+const flattenSchedule = (assigned) => {
+  const rows = []
+  assigned.forEach((a) => {
+    (a.schedule || []).forEach((s) => {
+      rows.push({
+        teacher: a.teacher,
+        section: a.section,
+        subject: a.subject,
+        day: s.day,
+        time: `${formatTime(s.time_start)}–${formatTime(s.time_end)}`,
+        room: s.room,
+      })
+    })
+  })
+  return rows
+}
+
 const ReportsPage = ({ onNavigate }) => {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -18,7 +45,6 @@ const ReportsPage = ({ onNavigate }) => {
     try {
       const res = await api.get('/api/generation-logs/')
       setLogs(listData(res))
-      console.log("LOGS: ", logs);
     } catch (err) {
       setError(err?.response?.data?.detail || 'Unable to load generation history.')
     } finally {
@@ -170,25 +196,26 @@ const ReportsPage = ({ onNavigate }) => {
                                   <th>Day</th>
                                   <th>Time</th>
                                   <th>Room</th>
-                                  <th className="right">Hrs/Wk</th>
                                 </tr>
                               </thead>
                               <tbody>
-                                {(log.details?.assigned || []).length === 0 ? (
-                                  <tr><td colSpan={4} className="paper-empty">Nothing was assigned in this run.</td></tr>
-                                ) : (
-                                  log.details.assigned.map((a, i) => (
-                                    <tr key={i}>
-                                      <td>{a.teacher}</td>
-                                      <td>{a.section}</td>
-                                      <td>{a.subject}</td>
-                                      <td>{a.schedule[0].day}</td>
-                                      <td>{a.schedule[0].time_start} - {a.schedule[0].time_end}</td>
-                                      <td>{a.schedule[0].room}</td>
-                                      <td className="right">{a.hours_assigned}</td>
-                                    </tr>
-                                  ))
-                                )}
+                                {(() => {
+                                  const rows = flattenSchedule(log.details?.assigned || [])
+                                  return rows.length === 0 ? (
+                                    <tr><td colSpan={6} className="paper-empty">Nothing was assigned in this run.</td></tr>
+                                  ) : (
+                                    rows.map((r, i) => (
+                                      <tr key={i}>
+                                        <td>{r.teacher}</td>
+                                        <td>{r.section}</td>
+                                        <td>{r.subject}</td>
+                                        <td>{r.day}</td>
+                                        <td>{r.time}</td>
+                                        <td>{r.room}</td>
+                                      </tr>
+                                    ))
+                                  )
+                                })()}
                               </tbody>
                             </table>
                             {(log.details?.skipped || []).length > 0 && (

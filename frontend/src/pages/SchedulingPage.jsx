@@ -24,6 +24,33 @@ const listData = (response) => (
   Array.isArray(response.data) ? response.data : response.data.results || []
 )
 
+// Backend groups periods under each assignment (assignment.schedule = [...]).
+// Flatten that into one row per period for the flat table view.
+const formatTime = (t) => {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const displayHour = h % 12 === 0 ? 12 : h % 12
+  return `${displayHour}:${String(m).padStart(2, '0')} ${period}`
+}
+
+const flattenSchedule = (assigned) => {
+  const rows = []
+  assigned.forEach((a) => {
+    (a.schedule || []).forEach((s) => {
+      rows.push({
+        teacher: a.teacher,
+        section: a.section,
+        subject: a.subject,
+        day: s.day,
+        time: `${formatTime(s.time_start)}–${formatTime(s.time_end)}`,
+        room: s.room,
+      })
+    })
+  })
+  return rows
+}
+
 const SchedulingPage = () => {
   const [schoolYears,   setSchoolYears]   = useState([])
   const [schoolYearId,  setSchoolYearId]  = useState('')
@@ -127,6 +154,7 @@ const SchedulingPage = () => {
 
   const assigned = results?.assigned || []
   const skipped = results?.skipped || []
+  const scheduleRows = flattenSchedule(assigned)
 
   return (
     <div className="screen">
@@ -235,7 +263,7 @@ const SchedulingPage = () => {
             </div>
           </div>
 
-       
+
           <div className="card card-body">
             <div className="section-title">DepEd Constraint Rules</div>
             <div className="constraints-list">
@@ -272,7 +300,7 @@ const SchedulingPage = () => {
 
         </div>
 
-    
+
         <div className="card card-body">
           <div className="row-between sched-preview-header no-print">
             <div>
@@ -281,7 +309,7 @@ const SchedulingPage = () => {
               </div>
               <div className="section-sub">
                 {results
-                  ? `${assigned.length} periods scheduled · ${skipped.length} unresolved`
+                  ? `${assigned.length} subject${assigned.length === 1 ? '' : 's'} assigned · ${scheduleRows.length} period${scheduleRows.length === 1 ? '' : 's'} scheduled · ${skipped.length} unresolved`
                   : (isAll
                       ? 'All Levels — Elementary, JHS, SHS'
                       : eduLevel + ' · ' + gradeLevel + (isSHS && strand !== 'N/A' ? ' · ' + strand : ''))
@@ -319,21 +347,23 @@ const SchedulingPage = () => {
                     <th>Teacher</th>
                     <th>Section</th>
                     <th>Subject</th>
-                    <th className="right">Hrs/Wk</th>
-                    <th className="right">Periods</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Room</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {assigned.length === 0 ? (
-                    <tr><td colSpan={5} className="paper-empty">Nothing was assigned.</td></tr>
+                  {scheduleRows.length === 0 ? (
+                    <tr><td colSpan={6} className="paper-empty">Nothing was assigned.</td></tr>
                   ) : (
-                    assigned.map((a, i) => (
+                    scheduleRows.map((r, i) => (
                       <tr key={i}>
-                        <td>{a.teacher}</td>
-                        <td>{a.section}</td>
-                        <td>{a.subject}</td>
-                        <td className="right">{a.hours_assigned}</td>
-                        <td className="right">{a.periods_scheduled ?? '—'}</td>
+                        <td>{r.teacher}</td>
+                        <td>{r.section}</td>
+                        <td>{r.subject}</td>
+                        <td>{r.day}</td>
+                        <td>{r.time}</td>
+                        <td>{r.room}</td>
                       </tr>
                     ))
                   )}

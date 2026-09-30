@@ -166,27 +166,40 @@ def _build_tasks(
     return tasks, already_assigned_count
 
 
-def _active_specializations(subject):
+def _active_specializations(subject, strand=None):
+    """
+    strand=None means "general qualification, any/no strand" - matches
+    TeacherSpecialization rows with strand IS NULL.
+    strand=<Strand instance> means "qualified specifically within this
+    strand" - only an exact strand match counts. A general specialization
+    does NOT satisfy a strand-specific requirement; that's the whole point
+    of the "qualified strand teachers" constraint.
+    """
     today = timezone.localdate()
-
-    return TeacherSpecialization.objects.filter(
+    qs = TeacherSpecialization.objects.filter(
         subject=subject,
         date_started__lte=today,
         date_ended__gte=today,
-    ).values_list("teacher_id", flat=True)
+    )
+    if strand:
+        qs = qs.filter(strand=strand)
+    else:
+        qs = qs.filter(strand__isnull=True)
+    return qs.values_list("teacher_id", flat=True)
+ 
 
 
 def _qualified_candidates(offering, section):
     """
     A teacher qualifies when:
       1. they belong to the same school;
-      2. they have an active specialization for the subject.
-
-    The current data model has no teacher-strand specialization field, so
-    strand matching is represented by the SubjectOffering/Section match.
+      2. they have an active specialization for the subject, matched on
+         strand: an exact strand match for strand-specific (SHS
+         specialized) offerings, a general (strand=None) specialization
+         for everything else.
     """
-    teacher_ids = _active_specializations(offering.subject)
-
+    teacher_ids = _active_specializations(offering.subject, offering.strand)
+ 
     return list(
         Teacher.objects
         .filter(
@@ -195,7 +208,7 @@ def _qualified_candidates(offering, section):
         )
         .select_related("employment_status")
     )
-
+ 
 
 def _daily_limit(teacher):
     """

@@ -213,6 +213,7 @@ class TeacherSpecialization(models.Model):
     specialization_id = models.AutoField(primary_key=True)
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, db_column='teacher_id')
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, db_column='subject_id')
+    strand = models.ForeignKey(Strand, on_delete=models.SET_NULL, db_column='strand_id', blank=True, null=True)
     date_started = models.DateField()
     date_ended = models.DateField(default=SENTINEL_STILL_ACTIVE)
 
