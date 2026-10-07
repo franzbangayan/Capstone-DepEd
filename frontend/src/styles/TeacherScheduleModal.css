@@ -1,0 +1,164 @@
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.schedule-modal-panel {
+  background: #e5e7eb;
+  width: min(1000px, 95vw);
+  height: min(720px, 90vh);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.schedule-toolbar {
+  background: #ffffff;
+  border-bottom: 1px solid #d1d5db;
+  padding: 16px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.schedule-toolbar h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.schedule-toolbar p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.schedule-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.schedule-scroll-area {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  justify-content: center;
+}
+
+.schedule-empty {
+  color: #6b7280;
+  font-style: italic;
+  padding: 40px;
+  text-align: center;
+}
+
+.schedule-paper {
+  background: #ffffff;
+  width: 100%;
+  max-width: 950px;
+  padding: 28px 32px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: #1f2933;
+}
+
+.schedule-letterhead {
+  text-align: center;
+  border-bottom: 2px solid #1f2933;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+
+.schedule-letterhead h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.schedule-letterhead p {
+  margin: 4px 0 0;
+  font-size: 0.85rem;
+  color: #52606d;
+}
+
+.schedule-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.78rem;
+}
+
+.schedule-grid th {
+  border: 1px solid #d1d5db;
+  background: #f8fafc;
+  padding: 8px 4px;
+  font-weight: 600;
+}
+
+.schedule-time-cell {
+  border: 1px solid #d1d5db;
+  padding: 6px 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.schedule-cell {
+  border: 1px solid #d1d5db;
+  padding: 6px 4px;
+  text-align: center;
+  color: #9aa5b1;
+  vertical-align: middle;
+  height: 52px;
+}
+
+.schedule-cell.filled {
+  color: #1f2933;
+  background: #eff6ff;
+}
+
+.schedule-cell-subject {
+  font-weight: 600;
+}
+
+.schedule-cell-meta {
+  font-size: 0.7rem;
+  color: #52606d;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-teacher-schedule,
+  #printable-teacher-schedule * {
+    visibility: visible;
+  }
+  #printable-teacher-schedule {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none;
+    padding: 0.4in;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .dialog-overlay,
+  .schedule-modal-panel,
+  .schedule-scroll-area {
+    position: static;
+    background: none;
+    height: auto;
+    overflow: visible;
+  }
+}

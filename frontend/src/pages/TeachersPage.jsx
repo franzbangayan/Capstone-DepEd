@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { IconSearch, IconChevronDown, IconPlus, IconEdit, IconTrash } from '../components/Icons'
 import TeacherFormModal from '../modals/TeacherFormModal'
 import ImportTeachersModal from '../modals/ImportTeachersModal'
+import TeacherScheduleModal from '../modals/TeacherScheduleModal'
 import api from '../api'
 
 const ACTIVE_DATE = '9999-12-31'
@@ -22,6 +23,7 @@ const TeachersPage = () => {
   const [showModal, setShowModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [editingTeacher, setEditingTeacher] = useState(null)
+  const [scheduleTeacher, setScheduleTeacher] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -162,6 +164,7 @@ const TeachersPage = () => {
                   <td>{teacher.maxLoad}</td>
                   <td>{teacher.specializations.length ? teacher.specializations.join(', ') : '—'}</td>
                   <td className="right">
+                    <button className="btn btn-outline btn-sm" onClick={() => setScheduleTeacher(teacher)}>View Schedule</button>
                     <button className="icon-btn" title="Edit" onClick={() => openEdit(teacher)}><IconEdit /></button>
                     <button className="icon-btn" title="Delete" onClick={() => deleteTeacher(teacher)}><IconTrash /></button>
                   </td>
@@ -195,6 +198,13 @@ const TeachersPage = () => {
           employmentStatuses={employmentStatuses}
           onClose={() => setShowImportModal(false)}
           onSaved={loadTeachers}
+        />
+      )}
+
+      {scheduleTeacher && (
+        <TeacherScheduleModal
+          teacher={scheduleTeacher}
+          onClose={() => setScheduleTeacher(null)}
         />
       )}
     </div>
