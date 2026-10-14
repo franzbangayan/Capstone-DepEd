@@ -11,11 +11,12 @@ const PERIODS = [
   { start: '07:30', end: '08:30' },
   { start: '08:30', end: '09:30' },
   { start: '09:30', end: '10:30' },
-  { start: '10:30', end: '11:30' },
-  { start: '11:30', end: '12:30' },
-  { start: '12:30', end: '13:30' },
-  { start: '13:30', end: '14:30' },
-  { start: '14:30', end: '15:30' },
+  { start: '10:30', end: '11:15', isBreak: true },
+  { start: '11:15', end: '12:15' },
+  { start: '12:15', end: '13:15' },
+  { start: '13:15', end: '14:15' },
+  { start: '14:15', end: '15:15' },
+  { start: '15:15', end: '16:15' },
 ]
 
 const listData = (response) => (
@@ -120,23 +121,30 @@ const TeacherScheduleModal = ({ teacher, onClose }) => {
                 </thead>
                 <tbody>
                   {PERIODS.map((p) => (
-                    <tr key={p.start}>
-                      <td className="schedule-time-cell">{formatTime(p.start)}–{formatTime(p.end)}</td>
-                      {DAYS.map((day) => {
-                        const cell = gridByKey[`${day}|${p.start}`]
-                        return (
-                          <td key={day} className={cell ? 'schedule-cell filled' : 'schedule-cell'}>
-                            {cell ? (
-                              <>
-                                <div className="schedule-cell-subject">{cell.subject}</div>
-                                <div className="schedule-cell-meta">{cell.section}</div>
-                                <div className="schedule-cell-meta">{cell.room}</div>
-                              </>
-                            ) : '—'}
-                          </td>
-                        )
-                      })}
-                    </tr>
+                    p.isBreak ? (
+                      <tr key={p.start} className="schedule-break-row">
+                        <td className="schedule-time-cell">{formatTime(p.start)}–{formatTime(p.end)}</td>
+                        <td className="schedule-break-cell" colSpan={DAYS.length}>Break</td>
+                      </tr>
+                    ) : (
+                      <tr key={p.start}>
+                        <td className="schedule-time-cell">{formatTime(p.start)}–{formatTime(p.end)}</td>
+                        {DAYS.map((day) => {
+                          const cell = gridByKey[`${day}|${p.start}`]
+                          return (
+                            <td key={day} className={cell ? 'schedule-cell filled' : 'schedule-cell'}>
+                              {cell ? (
+                                <>
+                                  <div className="schedule-cell-subject">{cell.subject}</div>
+                                  <div className="schedule-cell-meta">{cell.section}</div>
+                                  <div className="schedule-cell-meta">{cell.room}</div>
+                                </>
+                              ) : '—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    )
                   ))}
                 </tbody>
               </table>

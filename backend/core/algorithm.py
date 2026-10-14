@@ -18,15 +18,21 @@ from .models import (
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
+# Mid-morning break sits between periods 3 and 4. No TeachingLoad row is
+# ever generated for this window because it simply isn't in PERIODS.
+BREAK_START = time(10, 30)
+BREAK_END = time(11, 15)
+
 PERIODS = [
     (1, time(7, 30), time(8, 30)),
     (2, time(8, 30), time(9, 30)),
     (3, time(9, 30), time(10, 30)),
-    (4, time(10, 30), time(11, 30)),
-    (5, time(11, 30), time(12, 30)),
-    (6, time(12, 30), time(13, 30)),
-    (7, time(13, 30), time(14, 30)),
-    (8, time(14, 30), time(15, 30)),
+    # BREAK 10:30-11:15
+    (4, time(11, 15), time(12, 15)),
+    (5, time(12, 15), time(13, 15)),
+    (6, time(13, 15), time(14, 15)),
+    (7, time(14, 15), time(15, 15)),
+    (8, time(15, 15), time(16, 15)),
 ]
 
 ROOMS = [f"Room {i}" for i in range(1, 21)]
@@ -186,7 +192,6 @@ def _active_specializations(subject, strand=None):
     else:
         qs = qs.filter(strand__isnull=True)
     return qs.values_list("teacher_id", flat=True)
- 
 
 
 def _qualified_candidates(offering, section):
@@ -199,7 +204,7 @@ def _qualified_candidates(offering, section):
          for everything else.
     """
     teacher_ids = _active_specializations(offering.subject, offering.strand)
- 
+
     return list(
         Teacher.objects
         .filter(
@@ -208,7 +213,7 @@ def _qualified_candidates(offering, section):
         )
         .select_related("employment_status")
     )
- 
+
 
 def _daily_limit(teacher):
     """
@@ -313,81 +318,72 @@ def _find_slots(
     room_busy,
 ):
     """
-    Pick conflict-free periods for one subject.
+    Pick conflict-free periods for one subject, one period per day, max.
 
-    Greedy preference:
-      1. use days with fewer already-scheduled periods;
-      2. keep teacher under the daily limit;
-      3. keep the section conflict-free;
-      4. use the first available room.
+    A teacher never teaches the same subject to the same section twice in
+    one day - that's not a scheduling nicety, it's a hard rule. So this
+    picks at most ONE slot per day for this (teacher, section) pair: it
+    tries every day once, least-loaded day first, and a day that has no
+    free slot is simply skipped, never doubled up on to make room for
+    another day's miss. If the subject needs more periods than there are
+    usable days left, this returns None - that assignment is infeasible
+    and the caller reports it as skipped, rather than silently stacking
+    two periods of the same subject onto one day.
 
-    This spreads a subject across the week instead of immediately filling
-    Monday before using the other days.
+    The existing teacher daily-period cap (_daily_limit) and the section/
+    room/teacher conflict checks are still enforced on every pick.
     """
     teacher_id = teacher.teacher_id
     section_id = section.section_id
     daily_limit = _daily_limit(teacher)
 
-    available = []
+    day_order = sorted(
+        DAYS,
+        key=lambda d: (
+            len(teacher_daily_periods.get((teacher_id, d), set())),
+            DAYS.index(d),
+        ),
+    )
 
-    for day in DAYS:
+    chosen = []
+
+    for day in day_order:
+        if len(chosen) == needed:
+            break
+
+        existing_day_count = len(
+            teacher_daily_periods.get((teacher_id, day), set())
+        )
+        if existing_day_count >= daily_limit:
+            continue
+
         for period, start, end in PERIODS:
             slot_key = (day, start, end)
 
             if slot_key in teacher_busy.get(teacher_id, set()):
                 continue
-
             if slot_key in section_busy.get(section_id, set()):
-                continue
-
-            day_periods = teacher_daily_periods.get((teacher_id, day), set())
-            if len(day_periods) >= daily_limit:
                 continue
 
             room = _room_for_slot(room_busy, slot_key)
             if room is None:
                 continue
 
-            available.append(
+            chosen.append(
                 {
                     "day": day,
                     "period": period,
                     "time_start": start,
                     "time_end": end,
                     "room": room,
-                    "day_load": len(day_periods),
                 }
             )
+            break
 
-    # Prefer lightly loaded days, then earlier periods.
-    available.sort(key=lambda slot: (slot["day_load"], DAYS.index(slot["day"]), slot["period"]))
+    if len(chosen) < needed:
+        return None
 
-    chosen = []
-    chosen_keys = set()
-    chosen_day_counts = {}
-
-    for slot in available:
-        key = (slot["day"], slot["time_start"], slot["time_end"])
-
-        if key in chosen_keys:
-            continue
-
-        day_count = chosen_day_counts.get(slot["day"], 0)
-        existing_day_count = len(
-            teacher_daily_periods.get((teacher_id, slot["day"]), set())
-        )
-
-        if existing_day_count + day_count >= daily_limit:
-            continue
-
-        chosen.append(slot)
-        chosen_keys.add(key)
-        chosen_day_counts[slot["day"]] = day_count + 1
-
-        if len(chosen) == needed:
-            return chosen
-
-    return None
+    return chosen
 
 
 def _candidate_reason(candidates, capacity_candidates):
