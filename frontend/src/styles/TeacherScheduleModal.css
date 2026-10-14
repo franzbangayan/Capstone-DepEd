@@ -134,6 +134,15 @@
   color: #52606d;
 }
 
+.schedule-break-row .schedule-break-cell {
+  border: 1px solid #d1d5db;
+  background: #f1f5f9;
+  text-align: center;
+  font-style: italic;
+  color: #6b7280;
+  padding: 4px;
+}
+
 @media print {
   body * {
     visibility: hidden;

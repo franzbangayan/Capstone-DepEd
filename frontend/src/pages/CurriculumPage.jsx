@@ -4,8 +4,10 @@ import { IconPlus, IconEdit, IconTrash, IconSearch, IconChevronDown } from '../c
 import AddSubjectModal from '../modals/AddSubjectModal'
 import AddSectionModal from '../modals/AddSectionModal'
 import AddSchoolYearModal from '../modals/AddSchoolYearModal'
+import ImportSectionsModal from '../modals/ImportSectionsModal'
+import ImportSubjectOfferingsModal from '../modals/ImportSubjectOfferingsModal'
 import api from '../api'
-  
+
 
 
   const GRADE_LEVELS = [
@@ -23,7 +25,7 @@ import api from '../api'
     { label: 'Grade 11',     group: 'Senior High School' },
     { label: 'Grade 12',     group: 'Senior High School' },
   ]
-  
+
   const SHS_TRACKS = [
     {
       name: 'Academic Track',
@@ -64,7 +66,7 @@ import api from '../api'
       ],
     },
   ]
-  
+
   const CURRICULUM_TABS = [
     { id: 'grade-levels',       label: 'Grade Levels' },
     { id: 'tracks',             label: 'Tracks & Strands' },
@@ -73,16 +75,16 @@ import api from '../api'
     { id: 'sections',           label: 'Sections' },
     { id: 'school-year',        label: 'School Year' },
   ]
-  
+
   /* ── Tab: Grade Levels ── */
-  
+
   const GradeLevelsTab = () => {
     const groups = [
       { key: 'Elementary',        cls: 'elem', badge: 'elem' },
       { key: 'Junior High School',cls: 'jhs',  badge: 'jhs' },
       { key: 'Senior High School',cls: 'shs',  badge: 'shs' },
     ]
-  
+
     return (
       <div>
         <div className="tab-header">
@@ -91,7 +93,7 @@ import api from '../api'
             <p>Complete K-12 grade level structure as per DepEd — read only</p>
           </div>
         </div>
-  
+
         <div className="grade-cols">
           {groups.map((g) => {
             const levels = GRADE_LEVELS.filter((gl) => { return gl.group === g.key })
@@ -115,9 +117,9 @@ import api from '../api'
       </div>
     )
   }
-  
+
   /* ── Tab: Tracks & Strands ── */
-  
+
   const TracksTab = () => {
     return (
       <div>
@@ -127,7 +129,7 @@ import api from '../api'
             <p>Complete SHS track and strand structure as per DepEd K-12 curriculum</p>
           </div>
         </div>
-  
+
         <div className="tracks-grid">
           {SHS_TRACKS.map((track) => {
             return (
@@ -157,11 +159,11 @@ import api from '../api'
     )
   }
 
-  
-  
-  
+
+
+
   /* ── Tab: Subjects ── */
-  
+
 /* ── Tab: Subjects ── */
 
 const subjectTypeBadge = (type) => {
@@ -299,7 +301,7 @@ const SubjectsTab = () => {
     </div>
   )
 }
-  
+
   /* ── Tab: Sections ── */
 
 /* ── Tab: Sections ── */
@@ -323,6 +325,7 @@ const SectionsTab = () => {
   const [schoolYears,  setSchoolYears]  = useState([])
   const [teachers,     setTeachers]     = useState([])
   const [showModal,    setShowModal]    = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [editingSection, setEditingSection] = useState(null)
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
@@ -396,9 +399,14 @@ const SectionsTab = () => {
           <h3>Sections</h3>
           <p>Registered class sections with adviser assignments</p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={openAdd}>
-          <IconPlus /> Add Section
-        </button>
+        <div className="row">
+          <button className="btn btn-outline btn-sm" onClick={() => setShowImportModal(true)}>
+            Import
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={openAdd}>
+            <IconPlus /> Add Section
+          </button>
+        </div>
       </div>
 
       {error && <div className="form-error">{error}</div>}
@@ -410,6 +418,17 @@ const SectionsTab = () => {
             setShowModal(false)
             setEditingSection(null)
           }}
+          onSaved={loadSections}
+        />
+      )}
+
+      {showImportModal && (
+        <ImportSectionsModal
+          gradeLevels={gradeLevels}
+          strands={strands}
+          teachers={teachers}
+          schoolYears={schoolYears}
+          onClose={() => setShowImportModal(false)}
           onSaved={loadSections}
         />
       )}
@@ -499,11 +518,12 @@ const SubjectOfferingsTab = () => {
   const [error,        setError]        = useState('')
 
   const [showForm,     setShowForm]     = useState(false)
+  const [showImportModal, setShowImportModal] = useState(false)
   const [editingId,    setEditingId]    = useState(null)
   const [formSubject,  setFormSubject]  = useState('')
   const [formGrade,    setFormGrade]    = useState('')
   const [formStrand,   setFormStrand]   = useState('')
-  const [formHours,    setFormHours]    = useState(4)
+  const [formHours,    setFormHours]    = useState(5)
   const [saving,       setSaving]       = useState(false)
   const [formError,    setFormError]    = useState('')
 
@@ -545,7 +565,7 @@ const SubjectOfferingsTab = () => {
     setFormSubject(subjects[0]?.subject_id || '')
     setFormGrade(gradeLevels[0]?.grade_level_id || '')
     setFormStrand('')
-    setFormHours(4)
+    setFormHours(5)
     setFormError('')
   }
 
@@ -633,12 +653,27 @@ const SubjectOfferingsTab = () => {
           <h3>Subject Offerings</h3>
           <p>Link subjects to grade levels and strands, with required weekly hours</p>
         </div>
-        <button className="btn btn-primary btn-sm" onClick={() => { showForm ? setShowForm(false) : openAdd() }}>
-          <IconPlus /> Add Offering
-        </button>
+        <div className="row">
+          <button className="btn btn-outline btn-sm" onClick={() => setShowImportModal(true)}>
+            Import
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => { showForm ? setShowForm(false) : openAdd() }}>
+            <IconPlus /> Add Offering
+          </button>
+        </div>
       </div>
 
       {error && <div className="form-error">{error}</div>}
+
+      {showImportModal && (
+        <ImportSubjectOfferingsModal
+          subjects={subjects}
+          gradeLevels={gradeLevels}
+          strands={strands}
+          onClose={() => setShowImportModal(false)}
+          onSaved={loadAll}
+        />
+      )}
 
       {showForm && (
         <div className="offering-form card card-body">
@@ -758,7 +793,7 @@ const SubjectOfferingsTab = () => {
     </div>
   )
 }
-  
+
   /* ── Tab: School Year ── */
 
 
@@ -888,12 +923,12 @@ const SchoolYearTab = () => {
     </div>
   )
 }
-  
+
   /* ── Main Curriculum Page ── */
-  
+
   const CurriculumPage = () => {
     const [activeTab, setActiveTab] = useState('grade-levels')
-  
+
     return (
       <div className="screen">
         <div className="card">
@@ -910,7 +945,7 @@ const SchoolYearTab = () => {
               )
             })}
           </div>
-  
+
           <div className="tab-body">
             {activeTab === 'grade-levels'      && <GradeLevelsTab />}
             {activeTab === 'tracks'            && <TracksTab />}
@@ -923,5 +958,5 @@ const SchoolYearTab = () => {
       </div>
     )
   }
-  
+
   export default CurriculumPage
