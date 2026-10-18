@@ -357,7 +357,13 @@ def _find_slots(
         if existing_day_count >= daily_limit:
             continue
 
-        for period, start, end in PERIODS:
+        # Rotate the starting period by day and section so a subject does
+        # not land on the same hour every day and sections don't all pile
+        # onto period 1.
+        offset = (section_id + DAYS.index(day)) % len(PERIODS)
+        rotated = PERIODS[offset:] + PERIODS[:offset]
+
+        for period, start, end in rotated:
             slot_key = (day, start, end)
 
             if slot_key in teacher_busy.get(teacher_id, set()):
@@ -630,8 +636,14 @@ def run_greedy_allocation(
 
 
 # ============================================================
-# Existing Backtracking implementation
+# Backtracking implementation
 # ============================================================
+
+# Upper bound on search nodes (teacher choices tried). Backtracking is
+# exponential in the worst case, so the search is budgeted: it returns the
+# best schedule found when the budget runs out.
+MAX_BACKTRACK_NODES = 100000
+
 
 def run_backtracking_allocation(
     school_id,
@@ -642,10 +654,18 @@ def run_backtracking_allocation(
     generated_by=None,
 ):
     """
-    Existing backtracking allocator retained for algorithm comparison.
+    Backtracking allocator (iterative depth-first search, so schedule size
+    is not limited by Python's recursion depth).
 
-    It uses the same task builder and scheduling state as the Greedy
-    allocator, but explores alternatives recursively.
+    Each task (section + subject offering) is a decision level. At each
+    level the qualified teachers are tried in least-loaded order; if none
+    fits, the task is skipped as a last resort. When a branch dead-ends or
+    ends with skips, the search undoes the latest choice and tries the
+    next alternative, looking for a schedule with fewer skipped tasks.
+
+    Search stops when a schedule with zero skips is found, the search space
+    is exhausted, or MAX_BACKTRACK_NODES is reached. The best schedule
+    found (fewest skipped tasks) is returned.
     """
     start = perf_counter()
 
@@ -657,11 +677,33 @@ def run_backtracking_allocation(
         strand,
     )
 
+    skipped = []
+    task_data = []
+
+    # Tasks with no qualified teacher can never be assigned, so they are
+    # reported up front and excluded from the search.
+    for section, offering in tasks:
+        candidates = _qualified_candidates(offering, section)
+
+        if not candidates:
+            skipped.append(
+                {
+                    "section": section.section_name,
+                    "subject": offering.subject.subject_name,
+                    "reason": _candidate_reason([], []),
+                }
+            )
+            continue
+
+        task_data.append((section, offering, candidates))
+
     # Most constrained tasks first.
-    tasks.sort(
-        key=lambda task: (
-            len(_qualified_candidates(task[1], task[0])),
-            -float(task[1].hours_per_week),
+    task_data.sort(
+        key=lambda item: (
+            len(item[2]),
+            -float(item[1].hours_per_week),
+            item[0].section_id,
+            item[1].offering_id,
         )
     )
 
@@ -672,9 +714,6 @@ def run_backtracking_allocation(
     teacher_busy = state["teacher_busy"]
     section_busy = state["section_busy"]
     room_busy = state["room_busy"]
-
-    assignments = []
-    skipped = []
 
     def reserve(teacher, section, slots, hours):
         teacher_id = teacher.teacher_id
@@ -712,39 +751,93 @@ def run_backtracking_allocation(
             ).discard(key)
             room_busy.get(key, set()).discard(slot["room"])
 
-    def search(index):
-        if index == len(tasks):
-            return True
+    total = len(task_data)
 
-        section, offering = tasks[index]
-        candidates = _qualified_candidates(offering, section)
+    # frames[depth] holds the untried teacher options for that task.
+    # path[depth] holds the choice currently applied at that depth:
+    # an assignment dict, or None when the task was skipped.
+    frames = [None] * total
+    path = []
+    skips_in_path = 0
 
-        if not candidates:
-            skipped.append(
-                {
-                    "section": section.section_name,
-                    "subject": offering.subject.subject_name,
-                    "reason": "No qualified teacher found for this subject at this school.",
-                }
-            )
-            return search(index + 1)
+    best_path = None
+    best_skips = None
+    nodes = 0
+    depth = 0
+    budget_exhausted = False
 
-        candidates.sort(
-            key=lambda teacher: (
-                teacher_hours.get(teacher.teacher_id, 0.0),
-                teacher.teacher_id,
-            )
-        )
+    while depth >= 0:
+        if depth == total:
+            if best_skips is None or skips_in_path < best_skips:
+                best_path = list(path)
+                best_skips = skips_in_path
 
-        for teacher in candidates:
+            if best_skips == 0:
+                break
+
+            depth -= 1
+            continue
+
+        section, offering, candidates = task_data[depth]
+        hours = float(offering.hours_per_week)
+
+        if frames[depth] is None:
+            frames[depth] = {
+                "options": sorted(
+                    candidates,
+                    # Fill teachers up toward their cap before opening a
+                    # new one, so each teacher carries many sections.
+                    key=lambda teacher: (
+                        -teacher_hours.get(teacher.teacher_id, 0.0),
+                        teacher.teacher_id,
+                    ),
+                ),
+                "pos": 0,
+            }
+
+        frame = frames[depth]
+
+        # Undo whatever was applied at this depth on the previous visit.
+        if len(path) > depth:
+            previous = path.pop()
+            if previous is None:
+                skips_in_path -= 1
+            else:
+                release(
+                    previous["teacher"],
+                    section,
+                    previous["slots"],
+                    hours,
+                )
+
+        advanced = False
+
+        while frame["pos"] <= len(frame["options"]):
+            index = frame["pos"]
+            frame["pos"] += 1
+
+            if index == len(frame["options"]):
+                # Last resort: skip this task.
+                if best_skips is not None and skips_in_path + 1 >= best_skips:
+                    continue
+
+                path.append(None)
+                skips_in_path += 1
+                advanced = True
+                break
+
+            nodes += 1
+            if nodes > MAX_BACKTRACK_NODES:
+                budget_exhausted = True
+                break
+
+            teacher = frame["options"][index]
             limit = teacher.current_load_limit
+
             if limit is None:
                 continue
 
-            hours = float(offering.hours_per_week)
-            current_hours = teacher_hours.get(teacher.teacher_id, 0.0)
-
-            if current_hours + hours > float(limit.max_load_hours):
+            if teacher_hours.get(teacher.teacher_id, 0.0) + hours > float(limit.max_load_hours):
                 continue
 
             slots = _find_slots(
@@ -761,32 +854,45 @@ def run_backtracking_allocation(
                 continue
 
             reserve(teacher, section, slots, hours)
-            assignments.append(
+            path.append({"teacher": teacher, "slots": slots})
+            advanced = True
+            break
+
+        if budget_exhausted:
+            break
+
+        if advanced:
+            depth += 1
+        else:
+            frames[depth] = None
+            depth -= 1
+
+    # If the budget ran out before any complete schedule was found, keep
+    # the choices made so far and mark the remaining tasks as skipped.
+    if best_path is None:
+        best_path = list(path) + [None] * (total - len(path))
+
+    assignments = []
+
+    for (section, offering, _), choice in zip(task_data, best_path):
+        if choice is None:
+            skipped.append(
                 {
-                    "teacher": teacher,
-                    "section": section,
-                    "offering": offering,
-                    "slots": slots,
+                    "section": section.section_name,
+                    "subject": offering.subject.subject_name,
+                    "reason": _candidate_reason([True], [True]),
                 }
             )
+            continue
 
-            if search(index + 1):
-                return True
-
-            assignments.pop()
-            release(teacher, section, slots, hours)
-
-        skipped.append(
+        assignments.append(
             {
-                "section": section.section_name,
-                "subject": offering.subject.subject_name,
-                "reason": "No qualified teacher has enough remaining capacity and conflict-free schedule slots.",
+                "teacher": choice["teacher"],
+                "section": section,
+                "offering": offering,
+                "slots": choice["slots"],
             }
         )
-
-        return search(index + 1)
-
-    search(0)
 
     with transaction.atomic():
         for assignment in assignments:
@@ -827,6 +933,8 @@ def run_backtracking_allocation(
         "assigned_count": len(created),
         "skipped_count": len(skipped),
         "already_assigned_count": already_assigned_count,
+        "nodes_explored": nodes,
+        "budget_exhausted": budget_exhausted,
         "assigned": created,
         "skipped": skipped,
     }

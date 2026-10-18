@@ -268,5 +268,5 @@ class GenerationLogViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return GenerationLog.objects.filter(
-            school_id=self.request.user.school_id_id
-        )
+        school_id=self.request.user.school_id_id
+    ).order_by('-log_id')
