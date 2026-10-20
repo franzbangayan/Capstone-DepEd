@@ -500,11 +500,12 @@ def run_greedy_allocation(
             )
             continue
 
-        # Least weekly load first gives the greedy algorithm a simple
-        # workload-balancing objective. Teacher ID is the deterministic tie-breaker.
+        # Most-loaded first fills a teacher toward the weekly cap before
+        # opening another, so teachers carry full days. Teacher ID is the
+        # deterministic tie-breaker.
         capacity_candidates.sort(
             key=lambda teacher: (
-                teacher_hours.get(teacher.teacher_id, 0.0),
+                -teacher_hours.get(teacher.teacher_id, 0.0),
                 teacher.teacher_id,
             )
         )
@@ -979,3 +980,225 @@ def clear_generated_loads(
     ).delete()
 
     return deleted_count
+
+# ============================================================
+# Manual assignment (principal overrides)
+# ============================================================
+
+class ManualAssignmentError(Exception):
+    def __init__(self, message, requires_confirmation=False):
+        super().__init__(message)
+        self.requires_confirmation = requires_confirmation
+
+
+def get_manual_assignment_data(
+    school_id,
+    school_year=None,
+    education_level=None,
+    grade_level=None,
+    strand=None,
+):
+    """
+    Everything the manual assignment screen needs for one scope:
+      - unassigned: section/subject pairs with no teacher yet
+      - assigned: pairs that already have a teacher
+      - teachers: every teacher at the school with current/max weekly hours
+    """
+    sections = list(
+        _scoped_sections(
+            school_id, school_year, education_level, grade_level, strand
+        ).select_related("grade_level", "school")
+    )
+
+    state = _load_existing_state(school_id)
+    teacher_hours = state["teacher_hours"]
+
+    teachers = list(
+        Teacher.objects.filter(school_id=school_id)
+        .select_related("employment_status")
+    )
+
+    teacher_rows = []
+    for teacher in teachers:
+        limit = teacher.current_load_limit
+        teacher_rows.append(
+            {
+                "teacher_id": teacher.teacher_id,
+                "name": teacher.full_name,
+                "hours": teacher_hours.get(teacher.teacher_id, 0.0),
+                "max_hours": float(limit.max_load_hours) if limit else None,
+            }
+        )
+
+    loads = (
+        TeachingLoad.objects
+        .filter(section__in=sections)
+        .select_related("teacher", "section", "offering__subject")
+    )
+    assigned_map = {}
+    for load in loads:
+        key = (load.section_id, load.offering_id)
+        entry = assigned_map.setdefault(
+            key,
+            {
+                "section_id": load.section_id,
+                "section": load.section.section_name,
+                "offering_id": load.offering_id,
+                "subject": load.offering.subject.subject_name,
+                "hours": float(load.offering.hours_per_week),
+                "teacher_id": load.teacher_id,
+                "teacher": load.teacher.full_name,
+                "is_manual": load.is_manual_override,
+                "periods": 0,
+            },
+        )
+        entry["periods"] += 1
+
+    unassigned = []
+    for section in sections:
+        for offering in _applicable_offerings(section).select_related("subject"):
+            if (section.section_id, offering.offering_id) in assigned_map:
+                continue
+            qualified = _qualified_candidates(offering, section)
+            unassigned.append(
+                {
+                    "section_id": section.section_id,
+                    "section": section.section_name,
+                    "offering_id": offering.offering_id,
+                    "subject": offering.subject.subject_name,
+                    "hours": float(offering.hours_per_week),
+                    "qualified_teacher_ids": [t.teacher_id for t in qualified],
+                }
+            )
+
+    # Assigned rows also need the qualified list so the principal can
+    # reassign with the same warning rules.
+    assigned = []
+    offering_cache = {}
+    section_cache = {s.section_id: s for s in sections}
+    for (section_id, offering_id), entry in assigned_map.items():
+        if offering_id not in offering_cache:
+            offering_cache[offering_id] = SubjectOffering.objects.select_related(
+                "subject"
+            ).get(pk=offering_id)
+        qualified = _qualified_candidates(
+            offering_cache[offering_id], section_cache[section_id]
+        )
+        entry["qualified_teacher_ids"] = [t.teacher_id for t in qualified]
+        assigned.append(entry)
+
+    return {
+        "unassigned": unassigned,
+        "assigned": assigned,
+        "teachers": teacher_rows,
+    }
+
+
+def manual_assign(school_id, section_id, offering_id, teacher_id, force=False):
+    """
+    Assign (or reassign) a teacher to one section/subject pair.
+
+    Applies the same rules as the algorithms: weekly cap, daily cap, one
+    period per day, no teacher/section/room clash. Specialization is a
+    warning, not a block: without force=True an unqualified teacher raises
+    a confirmation error. Reassignment removes the old rows and creates
+    new ones atomically, so a failure leaves the old assignment untouched.
+    """
+    try:
+        section = Section.objects.select_related("school").get(
+            pk=section_id, school_id=school_id
+        )
+        offering = SubjectOffering.objects.select_related("subject").get(
+            pk=offering_id
+        )
+        teacher = Teacher.objects.select_related("employment_status").get(
+            pk=teacher_id, school_id=school_id
+        )
+    except (
+        Section.DoesNotExist,
+        SubjectOffering.DoesNotExist,
+        Teacher.DoesNotExist,
+    ):
+        raise ManualAssignmentError("Section, subject or teacher not found.")
+
+    if not _applicable_offerings(section).filter(pk=offering.pk).exists():
+        raise ManualAssignmentError(
+            "This subject is not offered to that section."
+        )
+
+    qualified_ids = {t.teacher_id for t in _qualified_candidates(offering, section)}
+    if teacher.teacher_id not in qualified_ids and not force:
+        raise ManualAssignmentError(
+            f"{teacher.full_name} is not listed as qualified for "
+            f"{offering.subject.subject_name}.",
+            requires_confirmation=True,
+        )
+
+    limit = teacher.current_load_limit
+    if limit is None:
+        raise ManualAssignmentError(
+            f"{teacher.full_name} has no active load limit."
+        )
+
+    hours = float(offering.hours_per_week)
+
+    with transaction.atomic():
+        TeachingLoad.objects.filter(
+            section=section, offering=offering
+        ).delete()
+
+        state = _load_existing_state(school_id)
+
+        current = state["teacher_hours"].get(teacher.teacher_id, 0.0)
+        if current + hours > float(limit.max_load_hours):
+            raise ManualAssignmentError(
+                f"{teacher.full_name} would exceed the weekly limit "
+                f"({current + hours:g} of {float(limit.max_load_hours):g} hours)."
+            )
+
+        slots = _find_slots(
+            teacher,
+            section,
+            _periods_needed(hours),
+            state["teacher_busy"],
+            state["teacher_daily_periods"],
+            state["section_busy"],
+            state["room_busy"],
+        )
+        if slots is None:
+            raise ManualAssignmentError(
+                f"No conflict-free slots for {teacher.full_name} on this "
+                f"subject and section."
+            )
+
+        for slot in slots:
+            TeachingLoad.objects.create(
+                teacher=teacher,
+                section=section,
+                offering=offering,
+                day=slot["day"],
+                time_start=slot["time_start"],
+                time_end=slot["time_end"],
+                room_assigned=slot["room"],
+                is_manual_override=True,
+            )
+
+    return {
+        "teacher": teacher.full_name,
+        "section": section.section_name,
+        "subject": offering.subject.subject_name,
+        "periods_scheduled": len(slots),
+    }
+
+
+def manual_unassign(school_id, section_id, offering_id):
+    deleted, _ = TeachingLoad.objects.filter(
+        section_id=section_id,
+        section__school_id=school_id,
+        offering_id=offering_id,
+    ).delete()
+
+    if deleted == 0:
+        raise ManualAssignmentError("That assignment does not exist.")
+
+    return deleted

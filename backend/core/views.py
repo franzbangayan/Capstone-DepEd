@@ -18,7 +18,11 @@ from .serializers import (
     SectionSerializer, SubjectOfferingSerializer, TeachingLoadSerializer,
     EmploymentStatusSerializer, GenerationLogSerializer
 )
-from .algorithm import run_greedy_allocation, run_backtracking_allocation, clear_generated_loads
+from .algorithm import (
+    run_greedy_allocation, run_backtracking_allocation, clear_generated_loads,
+    get_manual_assignment_data, manual_assign, manual_unassign,
+    ManualAssignmentError,
+)
 
 
 class CreateUserView(generics.CreateAPIView):
@@ -270,3 +274,62 @@ class GenerationLogViewSet(viewsets.ModelViewSet):
         return GenerationLog.objects.filter(
         school_id=self.request.user.school_id_id
     ).order_by('-log_id')
+
+
+class ManualAssignmentView(APIView):
+    """
+    GET    /api/manual-assignment/?school_year=&education_level=&grade_level=&strand=
+           -> unassigned pairs, assigned pairs, teacher workloads
+    POST   /api/manual-assignment/  {section, offering, teacher, force}
+           -> assign or reassign; 409 with requires_confirmation when the
+              teacher is not listed for the subject and force is false
+    DELETE /api/manual-assignment/?section=&offering=
+           -> remove an assignment
+    """
+
+    def get(self, request):
+        data = get_manual_assignment_data(
+            request.user.school_id_id,
+            school_year=request.query_params.get('school_year'),
+            education_level=request.query_params.get('education_level'),
+            grade_level=request.query_params.get('grade_level'),
+            strand=request.query_params.get('strand'),
+        )
+        return Response(data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        try:
+            result = manual_assign(
+                request.user.school_id_id,
+                request.data.get('section'),
+                request.data.get('offering'),
+                request.data.get('teacher'),
+                force=bool(request.data.get('force', False)),
+            )
+        except ManualAssignmentError as error:
+            code = (
+                status.HTTP_409_CONFLICT
+                if error.requires_confirmation
+                else status.HTTP_400_BAD_REQUEST
+            )
+            return Response(
+                {
+                    'detail': str(error),
+                    'requires_confirmation': error.requires_confirmation,
+                },
+                status=code,
+            )
+        return Response(result, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        try:
+            manual_unassign(
+                request.user.school_id_id,
+                request.query_params.get('section'),
+                request.query_params.get('offering'),
+            )
+        except ManualAssignmentError as error:
+            return Response(
+                {'detail': str(error)}, status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)

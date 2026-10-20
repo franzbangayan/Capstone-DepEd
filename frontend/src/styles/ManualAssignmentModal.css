@@ -1,0 +1,34 @@
+.dialog-panel.ma-panel { width: min(900px, 94vw); max-width: 94vw; }
+
+.ma-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ma-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.ma-tab { border: 1px solid #d1d5db; background: #fff; border-radius: 8px; padding: 6px 12px; font-size: 0.85rem; cursor: pointer; white-space: nowrap; }
+.ma-tab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.ma-filter { width: 180px; }
+
+.ma-list { display: flex; flex-direction: column; gap: 8px; max-height: 52vh; overflow-y: auto; }
+
+.ma-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.ma-row-main { font-size: 0.9rem; min-width: 0; overflow-wrap: anywhere; }
+.ma-select { width: 100%; min-width: 0; }
+.ma-row .btn { white-space: nowrap; min-width: 84px; }
+
+/* Teachers tab: name + hours only */
+.ma-row.ma-row-simple { grid-template-columns: minmax(0, 1fr) auto; }
+
+.ma-muted { color: #6b7280; font-size: 0.8rem; }
+.ma-warn { color: #b45309; }
+
+@media (max-width: 640px) {
+  .ma-row { grid-template-columns: 1fr; }
+  .ma-row .btn { width: 100%; }
+  .ma-filter { width: 100%; }
+}

@@ -1,13 +1,21 @@
 import '../styles/SchedulingPage.css'
 import { useState, useEffect } from 'react'
 import api from '../api'
+import { confirmDialog } from '../components/ConfirmDialog'
 import { IconZap, IconChevronDown, IconCheck, IconAlert, IconLayers } from '../components/Icons'
+import ManualAssignmentModal from '../modals/ManualAssignmentModal'
 
 const GRADE_LEVELS_BY_LEVEL = {
   All:                  ['All Levels'],
-  Elementary:           ['Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
-  'Junior High School': ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
-  'Senior High School': ['Grade 11', 'Grade 12'],
+  Elementary:           ['All Levels', 'Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
+  'Junior High School': ['All Levels', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
+  'Senior High School': ['All Levels', 'Grade 11', 'Grade 12'],
+}
+
+const ALL_LABEL = {
+  Elementary: 'Elementary',
+  'Junior High School': 'JHS',
+  'Senior High School': 'SHS',
 }
 
 const DEPED_CONSTRAINTS = [
@@ -65,6 +73,7 @@ const SchedulingPage = () => {
   const [error, setError]           = useState(null)
   const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
   const [algorithm, setAlgorithm] = useState('greedy')
+  const [showManual, setShowManual] = useState(false)
 
   const isAll = eduLevel === 'All'
   const isSHS = eduLevel === 'Senior High School'
@@ -131,7 +140,12 @@ const SchedulingPage = () => {
 
   const handleClear = async () => {
     if (!selectedSchoolYear) return
-    if (!window.confirm('Clear all algorithm-generated teaching loads for this scope? Manually overridden loads are kept.')) return
+    if (!(await confirmDialog({
+      title: 'Clear generated loads?',
+      message: 'All algorithm-generated teaching loads in this scope will be removed. Manually assigned loads are kept.',
+      confirmLabel: 'Clear loads',
+      danger: true,
+    }))) return
 
     setClearing(true)
     setError(null)
@@ -230,7 +244,8 @@ const SchedulingPage = () => {
                       onChange={(e) => { setGradeLevel(e.target.value) }}
                     >
                       {GRADE_LEVELS_BY_LEVEL[eduLevel].map((g) => {
-                        return <option key={g}>{g}</option>
+                        const label = g === 'All Levels' ? `All ${ALL_LABEL[eduLevel]}` : g
+                        return <option key={g} value={g}>{label}</option>
                       })}
                     </select>
                     <IconChevronDown />
@@ -292,6 +307,10 @@ const SchedulingPage = () => {
 
           <button className="btn btn-outline btn-full" onClick={() => setAlgorithm(algorithm === 'greedy' ? 'backtracking' : 'greedy')} disabled={clearing || generating}>
             Toggle Algorithm: {algorithm === 'greedy' ? 'Greedy' : 'Backtracking'}
+          </button>
+
+          <button className="btn btn-outline btn-full" onClick={() => setShowManual(true)} disabled={!selectedSchoolYear || clearing || generating}>
+            Manual Assignment
           </button>
 
           <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
@@ -423,6 +442,18 @@ const SchedulingPage = () => {
 
         </div>
       </div>
+      {showManual && selectedSchoolYear && (
+        <ManualAssignmentModal
+          scope={{
+            school_year: selectedSchoolYear.year_start,
+            education_level: eduLevel,
+            grade_level: gradeLevel,
+            strand: strand,
+          }}
+          onClose={() => setShowManual(false)}
+          onChanged={() => setResults(null)}
+        />
+      )}
     </div>
   )
 }
