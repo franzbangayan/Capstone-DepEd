@@ -1,6 +1,7 @@
 import '../styles/ReportsPage.css'
 import { useEffect, useState } from 'react'
 import api from '../api'
+import { confirmDialog } from '../components/ConfirmDialog'
 
 const listData = (response) => (
   Array.isArray(response.data) ? response.data : response.data.results || []
@@ -57,7 +58,12 @@ const ReportsPage = ({ onNavigate }) => {
   }, [])
 
   const handleClearHistory = async () => {
-    if (!window.confirm('Clear all generation history? This only removes the log entries below, not any actual teaching loads.')) return
+    if (!(await confirmDialog({
+      title: 'Clear generation history?',
+      message: 'This only removes the log entries below, not any actual teaching loads.',
+      confirmLabel: 'Clear history',
+      danger: true,
+    }))) return
     setClearing(true)
     try {
       await api.post('/api/clear-generation-history/')

@@ -5,6 +5,7 @@ import TeacherFormModal from '../modals/TeacherFormModal'
 import ImportTeachersModal from '../modals/ImportTeachersModal'
 import TeacherScheduleModal from '../modals/TeacherScheduleModal'
 import api from '../api'
+import { confirmDialog } from '../components/ConfirmDialog'
 
 const ACTIVE_DATE = '9999-12-31'
 
@@ -104,7 +105,12 @@ const TeachersPage = () => {
   }
 
   const deleteTeacher = async (teacher) => {
-    if (!window.confirm(`Delete ${teacher.first_name} ${teacher.last_name}? This cannot be undone.`)) return
+    if (!(await confirmDialog({
+      title: 'Delete teacher?',
+      message: `${teacher.first_name} ${teacher.last_name} will be permanently removed. This cannot be undone.`,
+      confirmLabel: 'Delete',
+      danger: true,
+    }))) return
 
     try {
       await api.delete(`/api/teachers/${teacher.teacher_id}/`)

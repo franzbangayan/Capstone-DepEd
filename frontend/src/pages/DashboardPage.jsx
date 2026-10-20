@@ -18,19 +18,19 @@ const DashboardPage = () => {
   const [sectionCount, setSectionCount] = useState()
   const [workload, setWorkload] = useState([])          // [{ name, assigned, max }]
   const [unassignedCount, setUnassignedCount] = useState(null)
+  const [statusCounts, setStatusCounts] = useState(null)   // { full, partial, none } sections
   const { refresh, schoolYear } = useSchool();
 
   useEffect(() => {
 
     const fetchData = async () => {
       try {
-        const [teachersRes, sectionsRes, loadLimitsRes, teachingLoadsRes, offeringsRes, logsRes] = await Promise.all([
+        const [teachersRes, sectionsRes, loadLimitsRes, teachingLoadsRes, offeringsRes] = await Promise.all([
           api.get("/api/teachers/"),
           api.get("/api/sections/"),
           api.get("/api/teacher-load-limits/"),
           api.get("/api/teaching-loads/"),
           api.get("/api/subject-offerings/"),
-          api.get("/api/generation-logs/"),
         ])
 
         const teachers = listData(teachersRes)
@@ -38,7 +38,6 @@ const DashboardPage = () => {
         const loadLimits = listData(loadLimitsRes)
         const teachingLoads = listData(teachingLoadsRes)
         const offerings = listData(offeringsRes)
-        const logs = listData(logsRes)
 
         setTeacherCount(teachers.length)
         setSectionCount(sections.length)
@@ -81,14 +80,41 @@ const DashboardPage = () => {
 
         setWorkload(computed)
 
-        // Unassigned Loads = skipped_count from the most recent
-        // generation run, if any has happened yet.
-        if (logs.length > 0) {
-          const mostRecent = [...logs].sort(
-            (a, b) => new Date(b.generated_at) - new Date(a.generated_at)
-          )[0]
-          setUnassignedCount(mostRecent.skipped_count)
-        }
+        // Live assignment status, computed from the current data so it
+        // stays correct after manual edits (not just the last run).
+        // Per section: compare its applicable offerings (same grade level;
+        // same strand for SHS, no strand otherwise) against assigned pairs.
+        const sectionIds = new Set(sections.map((sec) => Number(sec.section_id)))
+        const assignedKeys = new Set(
+          teachingLoads
+            .filter((load) => sectionIds.has(Number(load.section)))
+            .map((load) => `${load.section}-${load.offering}`)
+        )
+
+        let full = 0
+        let partial = 0
+        let none = 0
+        let unassignedPairs = 0
+
+        sections.forEach((sec) => {
+          const applicable = offerings.filter((o) =>
+            Number(o.grade_level) === Number(sec.grade_level) &&
+            (sec.strand ? Number(o.strand) === Number(sec.strand) : o.strand == null)
+          )
+          if (applicable.length === 0) return
+
+          const done = applicable.filter((o) =>
+            assignedKeys.has(`${sec.section_id}-${o.offering_id}`)
+          ).length
+
+          unassignedPairs += applicable.length - done
+          if (done === applicable.length) full += 1
+          else if (done === 0) none += 1
+          else partial += 1
+        })
+
+        setStatusCounts({ full, partial, none })
+        setUnassignedCount(unassignedPairs)
       } catch (err) {
         console.error(err)
       }
@@ -211,27 +237,28 @@ const DashboardPage = () => {
 
           <div className="card card-body">
             <div className="section-title">Assignment Status</div>
+            <div className="section-sub">Sections by subject coverage</div>
             <div className="status-list">
               <div className="status-row">
                 <div className="status-left">
                   <div className="status-dot green" />
                   <span className="status-text">Fully Assigned</span>
                 </div>
-                <span className="status-count">--</span>
+                <span className="status-count">{statusCounts ? statusCounts.full : "--"}</span>
               </div>
               <div className="status-row">
                 <div className="status-left">
                   <div className="status-dot amber" />
                   <span className="status-text">Partially Assigned</span>
                 </div>
-                <span className="status-count">--</span>
+                <span className="status-count">{statusCounts ? statusCounts.partial : "--"}</span>
               </div>
               <div className="status-row">
                 <div className="status-left">
                   <div className="status-dot red" />
                   <span className="status-text">Unassigned</span>
                 </div>
-                <span className="status-count">--</span>
+                <span className="status-count">{statusCounts ? statusCounts.none : "--"}</span>
               </div>
             </div>
           </div>

@@ -7,6 +7,7 @@ import AddSchoolYearModal from '../modals/AddSchoolYearModal'
 import ImportSectionsModal from '../modals/ImportSectionsModal'
 import ImportSubjectOfferingsModal from '../modals/ImportSubjectOfferingsModal'
 import api from '../api'
+import { confirmDialog } from '../components/ConfirmDialog'
 
 
 
@@ -214,7 +215,7 @@ const SubjectsTab = () => {
   }
 
   const deleteSubject = async (subject) => {
-    if (!window.confirm(`Delete ${subject.subject_name}?`)) return
+    if (!(await confirmDialog({ title: 'Delete subject?', message: `${subject.subject_name} will be permanently removed.`, confirmLabel: 'Delete', danger: true }))) return
 
     try {
       await api.delete(`/api/subjects/${subject.subject_id}/`)
@@ -382,7 +383,7 @@ const SectionsTab = () => {
   }
 
   const deleteSection = async (section) => {
-    if (!window.confirm(`Delete section ${section.section_name}?`)) return
+    if (!(await confirmDialog({ title: 'Delete section?', message: `${section.section_name} will be permanently removed.`, confirmLabel: 'Delete', danger: true }))) return
 
     try {
       await api.delete(`/api/sections/${section.section_id}/`)
@@ -636,7 +637,7 @@ const SubjectOfferingsTab = () => {
 
   const deleteOffering = async (offering) => {
     const subjectName = subjectNameById[offering.subject] || 'this offering'
-    if (!window.confirm(`Delete the ${subjectName} offering?`)) return
+    if (!(await confirmDialog({ title: 'Delete subject offering?', message: `The ${subjectName} offering will be permanently removed.`, confirmLabel: 'Delete', danger: true }))) return
 
     try {
       await api.delete(`/api/subject-offerings/${offering.offering_id}/`)
@@ -836,7 +837,7 @@ const SchoolYearTab = () => {
   }
 
   const deleteSchoolYear = async (sy) => {
-    if (!window.confirm(`Delete S.Y. ${sy.year_start}–${sy.year_end}?`)) return
+    if (!(await confirmDialog({ title: 'Delete school year?', message: `S.Y. ${sy.year_start}–${sy.year_end} will be permanently removed.`, confirmLabel: 'Delete', danger: true }))) return
 
     try {
       await api.delete(`/api/school-years/${sy.school_year_id}/`)
