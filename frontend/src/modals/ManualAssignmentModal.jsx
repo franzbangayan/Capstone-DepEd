@@ -3,7 +3,7 @@ import '../styles/ManualAssignmentModal.css'
 import { useState, useEffect, useCallback } from 'react'
 import { IconX } from '../components/Icons'
 import api from '../api'
-import { confirmDialog } from '../components/'
+import { confirmDialog } from '../components/ConfirmDialog'
 
 const errorText = (err) => err?.response?.data?.detail || err?.message || 'Request failed.'
 
