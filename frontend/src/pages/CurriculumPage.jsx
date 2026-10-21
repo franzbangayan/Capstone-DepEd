@@ -5,6 +5,7 @@ import AddSubjectModal from '../modals/AddSubjectModal'
 import AddSectionModal from '../modals/AddSectionModal'
 import AddSchoolYearModal from '../modals/AddSchoolYearModal'
 import ImportSectionsModal from '../modals/ImportSectionsModal'
+import SectionScheduleModal from '../modals/SectionScheduleModal'
 import ImportSubjectOfferingsModal from '../modals/ImportSubjectOfferingsModal'
 import api from '../api'
 import { confirmDialog } from '../components/ConfirmDialog'
@@ -328,6 +329,7 @@ const SectionsTab = () => {
   const [showModal,    setShowModal]    = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [editingSection, setEditingSection] = useState(null)
+  const [scheduleSection, setScheduleSection] = useState(null)
   const [loading,      setLoading]      = useState(true)
   const [error,        setError]        = useState('')
 
@@ -423,6 +425,14 @@ const SectionsTab = () => {
         />
       )}
 
+      {scheduleSection && (
+        <SectionScheduleModal
+          section={scheduleSection}
+          gradeName={gradeNameById[scheduleSection.grade_level]}
+          onClose={() => setScheduleSection(null)}
+        />
+      )}
+
       {showImportModal && (
         <ImportSectionsModal
           gradeLevels={gradeLevels}
@@ -470,6 +480,7 @@ const SectionsTab = () => {
                     <td className="td-muted">{schoolYearLabelById[s.school_year] || '—'}</td>
                     <td>
                       <div className="td-actions">
+                        <button className="btn btn-outline btn-sm" onClick={() => setScheduleSection(s)}>View Schedule</button>
                         <button className="btn-icon edit" onClick={() => openEdit(s)}><IconEdit /></button>
                         <button className="btn-icon del" onClick={() => deleteSection(s)}><IconTrash /></button>
                       </div>
