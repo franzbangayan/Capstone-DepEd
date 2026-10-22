@@ -12,157 +12,12 @@ import { confirmDialog } from '../components/ConfirmDialog'
 
 
 
-  const GRADE_LEVELS = [
-    { label: 'Kindergarten', group: 'Elementary' },
-    { label: 'Grade 1',      group: 'Elementary' },
-    { label: 'Grade 2',      group: 'Elementary' },
-    { label: 'Grade 3',      group: 'Elementary' },
-    { label: 'Grade 4',      group: 'Elementary' },
-    { label: 'Grade 5',      group: 'Elementary' },
-    { label: 'Grade 6',      group: 'Elementary' },
-    { label: 'Grade 7',      group: 'Junior High School' },
-    { label: 'Grade 8',      group: 'Junior High School' },
-    { label: 'Grade 9',      group: 'Junior High School' },
-    { label: 'Grade 10',     group: 'Junior High School' },
-    { label: 'Grade 11',     group: 'Senior High School' },
-    { label: 'Grade 12',     group: 'Senior High School' },
-  ]
-
-  const SHS_TRACKS = [
-    {
-      name: 'Academic Track',
-      cls: 'academic',
-      icon: '📐',
-      strands: [
-        { name: 'STEM',  desc: 'Science, Technology, Engineering, and Mathematics' },
-        { name: 'ABM',   desc: 'Accountancy, Business, and Management' },
-        { name: 'HUMSS', desc: 'Humanities and Social Sciences' },
-        { name: 'GAS',   desc: 'General Academic Strand' },
-      ],
-    },
-    {
-      name: 'TVL Track',
-      cls: 'tvl',
-      icon: '🔧',
-      strands: [
-        { name: 'Agri-Fishery Arts', desc: 'Agriculture and fishery-related specializations' },
-        { name: 'Home Economics',    desc: 'Household services and food technology' },
-        { name: 'ICT',               desc: 'Information and Communications Technology' },
-        { name: 'Industrial Arts',   desc: 'Electrical, automotive, and construction' },
-      ],
-    },
-    {
-      name: 'Sports Track',
-      cls: 'sports',
-      icon: '⚽',
-      strands: [
-        { name: 'Sports', desc: 'Athletics, team sports, individual sports' },
-      ],
-    },
-    {
-      name: 'Arts and Design Track',
-      cls: 'arts',
-      icon: '🎨',
-      strands: [
-        { name: 'Arts and Design', desc: 'Visual arts, industrial design, media arts' },
-      ],
-    },
-  ]
-
   const CURRICULUM_TABS = [
-    { id: 'grade-levels',       label: 'Grade Levels' },
-    { id: 'tracks',             label: 'Tracks & Strands' },
     { id: 'subjects',           label: 'Subjects' },
     { id: 'subject-offerings',  label: 'Subject Offerings' },
     { id: 'sections',           label: 'Sections' },
     { id: 'school-year',        label: 'School Year' },
   ]
-
-  /* ── Tab: Grade Levels ── */
-
-  const GradeLevelsTab = () => {
-    const groups = [
-      { key: 'Elementary',        cls: 'elem', badge: 'elem' },
-      { key: 'Junior High School',cls: 'jhs',  badge: 'jhs' },
-      { key: 'Senior High School',cls: 'shs',  badge: 'shs' },
-    ]
-
-    return (
-      <div>
-        <div className="tab-header">
-          <div className="tab-header-text">
-            <h3>Grade Levels</h3>
-            <p>Complete K-12 grade level structure as per DepEd — read only</p>
-          </div>
-        </div>
-
-        <div className="grade-cols">
-          {groups.map((g) => {
-            const levels = GRADE_LEVELS.filter((gl) => { return gl.group === g.key })
-            return (
-              <div key={g.key} className={'grade-group ' + g.cls}>
-                <div className={'grade-group-badge ' + g.badge}>{g.key}</div>
-                <div className="grade-list">
-                  {levels.map((gl) => {
-                    return (
-                      <div key={gl.label} className="grade-item">
-                        <span className="grade-item-label">{gl.label}</span>
-                        <button><IconEdit /></button>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-  /* ── Tab: Tracks & Strands ── */
-
-  const TracksTab = () => {
-    return (
-      <div>
-        <div className="tab-header">
-          <div className="tab-header-text">
-            <h3>Senior High School Tracks &amp; Strands</h3>
-            <p>Complete SHS track and strand structure as per DepEd K-12 curriculum</p>
-          </div>
-        </div>
-
-        <div className="tracks-grid">
-          {SHS_TRACKS.map((track) => {
-            return (
-              <div key={track.name} className={'track-card ' + track.cls}>
-                <div className="track-title">
-                  <span>{track.icon}</span>
-                  {track.name}
-                </div>
-                <div className="strand-list">
-                  {track.strands.map((s) => {
-                    return (
-                      <div key={s.name} className="strand-item">
-                        <div className="strand-dot" />
-                        <div>
-                          <div className="strand-name">{s.name}</div>
-                          <div className="strand-desc">{s.desc}</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-
-
 
   /* ── Tab: Subjects ── */
 
@@ -939,7 +794,7 @@ const SchoolYearTab = () => {
   /* ── Main Curriculum Page ── */
 
   const CurriculumPage = () => {
-    const [activeTab, setActiveTab] = useState('grade-levels')
+    const [activeTab, setActiveTab] = useState('subjects')
 
     return (
       <div className="screen">
@@ -959,8 +814,6 @@ const SchoolYearTab = () => {
           </div>
 
           <div className="tab-body">
-            {activeTab === 'grade-levels'      && <GradeLevelsTab />}
-            {activeTab === 'tracks'            && <TracksTab />}
             {activeTab === 'subjects'          && <SubjectsTab />}
             {activeTab === 'subject-offerings' && <SubjectOfferingsTab />}
             {activeTab === 'sections'          && <SectionsTab />}

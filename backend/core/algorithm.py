@@ -18,24 +18,46 @@ from .models import (
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 
-# Mid-morning break sits between periods 3 and 4. No TeachingLoad row is
-# ever generated for this window because it simply isn't in PERIODS.
-BREAK_START = time(10, 30)
-BREAK_END = time(11, 15)
+# Double-shift school day (DepEd Order No. 62, s. 2004 allows double shifts
+# to address classroom shortage). Each shift has 6 fifty-minute periods and
+# a 20-minute break after period 3. No TeachingLoad row is ever generated
+# for a break because it isn't in PERIODS_BY_SHIFT.
+#
+#   Morning:   6:00 - 11:20   (break 8:30 - 8:50)
+#   Afternoon: 12:10 - 17:30  (break 14:40 - 15:00)
+PERIODS_BY_SHIFT = {
+    "Morning": [
+        (1, time(6, 0), time(6, 50)),
+        (2, time(6, 50), time(7, 40)),
+        (3, time(7, 40), time(8, 30)),
+        # BREAK 8:30-8:50
+        (4, time(8, 50), time(9, 40)),
+        (5, time(9, 40), time(10, 30)),
+        (6, time(10, 30), time(11, 20)),
+    ],
+    "Afternoon": [
+        (1, time(12, 10), time(13, 0)),
+        (2, time(13, 0), time(13, 50)),
+        (3, time(13, 50), time(14, 40)),
+        # BREAK 14:40-15:00
+        (4, time(15, 0), time(15, 50)),
+        (5, time(15, 50), time(16, 40)),
+        (6, time(16, 40), time(17, 30)),
+    ],
+}
 
-PERIODS = [
-    (1, time(7, 30), time(8, 30)),
-    (2, time(8, 30), time(9, 30)),
-    (3, time(9, 30), time(10, 30)),
-    # BREAK 10:30-11:15
-    (4, time(11, 15), time(12, 15)),
-    (5, time(12, 15), time(13, 15)),
-    (6, time(13, 15), time(14, 15)),
-    (7, time(14, 15), time(15, 15)),
-    (8, time(15, 15), time(16, 15)),
-]
+# Classrooms available to the school. A section keeps one home room all
+# week; a Morning section and an Afternoon section can share the same room.
+ROOMS = [f"Room {i}" for i in range(1, 61)]
 
-ROOMS = [f"Room {i}" for i in range(1, 21)]
+
+def _shift_of(section_id):
+    """
+    A section's shift is derived from its id so it never changes and needs
+    no extra column: even ids attend the Morning shift, odd ids the
+    Afternoon shift. Consecutively created sections therefore alternate.
+    """
+    return "Morning" if section_id % 2 == 0 else "Afternoon"
 
 
 def _master_slots():
@@ -47,7 +69,8 @@ def _master_slots():
             "time_end": end,
         }
         for day in DAYS
-        for period, start, end in PERIODS
+        for periods in PERIODS_BY_SHIFT.values()
+        for period, start, end in periods
     ]
 
 
@@ -254,7 +277,8 @@ def _load_existing_state(school_id):
     teacher_daily_periods = {}
     teacher_busy = {}
     section_busy = {}
-    room_busy = {}
+    section_rooms = {}
+    room_owners = {}
 
     # Track an offering only once when calculating weekly load.
     counted_teacher_assignments = set()
@@ -266,10 +290,9 @@ def _load_existing_state(school_id):
 
         teacher_busy.setdefault(teacher_id, set()).add(key)
         section_busy.setdefault(section_id, set()).add(key)
-        room_busy.setdefault(
-            (load.day, load.time_start, load.time_end),
-            set(),
-        ).add(load.room_assigned)
+        if load.room_assigned:
+            section_rooms[section_id] = load.room_assigned
+            room_owners[(_shift_of(section_id), load.room_assigned)] = section_id
 
         teacher_daily_periods.setdefault(
             (teacher_id, load.day),
@@ -294,15 +317,26 @@ def _load_existing_state(school_id):
         "teacher_daily_periods": teacher_daily_periods,
         "teacher_busy": teacher_busy,
         "section_busy": section_busy,
-        "room_busy": room_busy,
+        "rooms": {"by_section": section_rooms, "owners": room_owners},
     }
 
 
-def _room_for_slot(room_busy, slot_key):
-    used = room_busy.get(slot_key, set())
+def _home_room(section, rooms):
+    """
+    A section's fixed classroom. Reuses the room it already has; otherwise
+    takes the first room not yet owned by another section of the same
+    shift. Returns None when every room is taken for that shift.
+    """
+    section_id = section.section_id
+    existing = rooms["by_section"].get(section_id)
+    if existing:
+        return existing
 
+    shift = _shift_of(section_id)
     for room in ROOMS:
-        if room not in used:
+        if (shift, room) not in rooms["owners"]:
+            rooms["by_section"][section_id] = room
+            rooms["owners"][(shift, room)] = section_id
             return room
 
     return None
@@ -315,7 +349,7 @@ def _find_slots(
     teacher_busy,
     teacher_daily_periods,
     section_busy,
-    room_busy,
+    rooms,
 ):
     """
     Pick conflict-free periods for one subject, one period per day, max.
@@ -360,8 +394,9 @@ def _find_slots(
         # Rotate the starting period by day and section so a subject does
         # not land on the same hour every day and sections don't all pile
         # onto period 1.
-        offset = (section_id + DAYS.index(day)) % len(PERIODS)
-        rotated = PERIODS[offset:] + PERIODS[:offset]
+        periods = PERIODS_BY_SHIFT[_shift_of(section_id)]
+        offset = (section_id + DAYS.index(day)) % len(periods)
+        rotated = periods[offset:] + periods[:offset]
 
         for period, start, end in rotated:
             slot_key = (day, start, end)
@@ -371,9 +406,12 @@ def _find_slots(
             if slot_key in section_busy.get(section_id, set()):
                 continue
 
-            room = _room_for_slot(room_busy, slot_key)
+            # A section stays in its home room and teachers move between
+            # rooms. Sections sharing a room are in opposite shifts, so a
+            # room can never double-book.
+            room = _home_room(section, rooms)
             if room is None:
-                continue
+                return None
 
             chosen.append(
                 {
@@ -458,7 +496,7 @@ def run_greedy_allocation(
     teacher_daily_periods = state["teacher_daily_periods"]
     teacher_busy = state["teacher_busy"]
     section_busy = state["section_busy"]
-    room_busy = state["room_busy"]
+    rooms = state["rooms"]
 
     assignments = []
     skipped = []
@@ -521,7 +559,7 @@ def run_greedy_allocation(
                 teacher_busy=teacher_busy,
                 teacher_daily_periods=teacher_daily_periods,
                 section_busy=section_busy,
-                room_busy=room_busy,
+                rooms=rooms,
             )
 
             if slots is not None:
@@ -564,7 +602,6 @@ def run_greedy_allocation(
                 set(),
             ).add(slot_key)
 
-            room_busy.setdefault(slot_key, set()).add(slot["room"])
 
         assignments.append(
             {
@@ -714,7 +751,7 @@ def run_backtracking_allocation(
     teacher_daily_periods = state["teacher_daily_periods"]
     teacher_busy = state["teacher_busy"]
     section_busy = state["section_busy"]
-    room_busy = state["room_busy"]
+    rooms = state["rooms"]
 
     def reserve(teacher, section, slots, hours):
         teacher_id = teacher.teacher_id
@@ -732,7 +769,6 @@ def run_backtracking_allocation(
                 (teacher_id, slot["day"]),
                 set(),
             ).add(key)
-            room_busy.setdefault(key, set()).add(slot["room"])
 
     def release(teacher, section, slots, hours):
         teacher_id = teacher.teacher_id
@@ -750,7 +786,6 @@ def run_backtracking_allocation(
                 (teacher_id, slot["day"]),
                 set(),
             ).discard(key)
-            room_busy.get(key, set()).discard(slot["room"])
 
     total = len(task_data)
 
@@ -848,7 +883,7 @@ def run_backtracking_allocation(
                 teacher_busy,
                 teacher_daily_periods,
                 section_busy,
-                room_busy,
+                rooms,
             )
 
             if slots is None:
@@ -1163,7 +1198,7 @@ def manual_assign(school_id, section_id, offering_id, teacher_id, force=False):
             state["teacher_busy"],
             state["teacher_daily_periods"],
             state["section_busy"],
-            state["room_busy"],
+            state["rooms"],
         )
         if slots is None:
             raise ManualAssignmentError(

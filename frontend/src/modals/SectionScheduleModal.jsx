@@ -5,19 +5,28 @@ import api from '../api'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
-// Matches the fixed periods defined in algorithm.py - keep these two in
-// sync if the backend's bell schedule ever changes.
-const PERIODS = [
-  { start: '07:30', end: '08:30' },
-  { start: '08:30', end: '09:30' },
-  { start: '09:30', end: '10:30' },
-  { start: '10:30', end: '11:15', isBreak: true },
-  { start: '11:15', end: '12:15' },
-  { start: '12:15', end: '13:15' },
-  { start: '13:15', end: '14:15' },
-  { start: '14:15', end: '15:15' },
-  { start: '15:15', end: '16:15' },
-]
+// Matches the double-shift day defined in algorithm.py (PERIODS_BY_SHIFT) -
+// keep these in sync if the bell schedule ever changes.
+const SHIFT_PERIODS = {
+  Morning: [
+    { start: '06:00', end: '06:50' },
+    { start: '06:50', end: '07:40' },
+    { start: '07:40', end: '08:30' },
+    { start: '08:30', end: '08:50', isBreak: true },
+    { start: '08:50', end: '09:40' },
+    { start: '09:40', end: '10:30' },
+    { start: '10:30', end: '11:20' },
+  ],
+  Afternoon: [
+    { start: '12:10', end: '13:00' },
+    { start: '13:00', end: '13:50' },
+    { start: '13:50', end: '14:40' },
+    { start: '14:40', end: '15:00', isBreak: true },
+    { start: '15:00', end: '15:50' },
+    { start: '15:50', end: '16:40' },
+    { start: '16:40', end: '17:30' },
+  ],
+}
 
 const listData = (response) => (
   Array.isArray(response.data) ? response.data : response.data.results || []
@@ -30,7 +39,13 @@ const formatTime = (t) => {
   return `${displayHour}:${String(m).padStart(2, '0')} ${period}`
 }
 
+// Mirrors _shift_of() in algorithm.py: even section ids attend the Morning
+// shift, odd ids the Afternoon shift.
+const shiftOfSection = (sectionId) => (Number(sectionId) % 2 === 0 ? 'Morning' : 'Afternoon')
+
 const SectionScheduleModal = ({ section, gradeName, onClose }) => {
+  const shift = shiftOfSection(section.section_id)
+  const PERIODS = SHIFT_PERIODS[shift]
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [gridByKey, setGridByKey] = useState({})   // "Monday|07:30" -> { subject, teacher, room }
@@ -96,7 +111,7 @@ const SectionScheduleModal = ({ section, gradeName, onClose }) => {
         <div className="schedule-toolbar no-print">
           <div>
             <h2>{title} Schedule</h2>
-            <p>{totalPeriods} period{totalPeriods === 1 ? '' : 's'} per week</p>
+            <p>{shift} shift · {totalPeriods} period{totalPeriods === 1 ? '' : 's'} per week</p>
           </div>
           <div className="schedule-toolbar-actions">
             <button className="btn btn-primary btn-sm" onClick={handlePrint} disabled={loading}>Print</button>
@@ -114,7 +129,7 @@ const SectionScheduleModal = ({ section, gradeName, onClose }) => {
             <div id="printable-teacher-schedule" className="schedule-paper">
               <div className="schedule-letterhead">
                 <h1>{title}</h1>
-                <p>Weekly Class Schedule</p>
+                <p>Weekly Class Schedule · {shift} Shift</p>
               </div>
 
               <table className="schedule-grid">
