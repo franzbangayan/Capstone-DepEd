@@ -36,7 +36,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 # Application definition
 
 INSTALLED_APPS = [
@@ -46,7 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
+    'rest_framework',wwwwwwwwwwwwww
     'corsheaders',
     'core',
 ]
