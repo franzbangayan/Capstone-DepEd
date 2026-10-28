@@ -1,0 +1,21 @@
+section_id,school_id,school_year_id,grade_level_id,strand_id,section_name,adviser_teacher_id
+1,1,1,1,,Grade 1 - Section 1,1
+2,2,2,2,,Grade 2 - Section 2,2
+3,3,3,3,,Grade 3 - Section 3,3
+4,4,4,4,,Grade 4 - Section 4,4
+5,5,5,5,,Grade 5 - Section 5,5
+6,1,1,6,,Grade 6 - Section 6,1
+7,2,2,7,,Grade 7 - Section 7,2
+8,3,3,8,,Grade 8 - Section 8,3
+9,4,4,9,,Grade 9 - Section 9,4
+10,5,5,10,,Grade 10 - Section 10,5
+11,1,1,11,3,Strand 11 - Section 11,1
+12,2,2,12,4,Strand 12 - Section 12,2
+13,3,3,1,,Grade 1 - Section 13,3
+14,4,4,2,,Grade 2 - Section 14,4
+15,5,5,3,,Grade 3 - Section 15,5
+16,1,1,4,,Grade 4 - Section 16,1
+17,2,2,5,,Grade 5 - Section 17,2
+18,3,3,6,,Grade 6 - Section 18,3
+19,4,4,7,,Grade 7 - Section 19,4
+20,5,5,8,,Grade 8 - Section 20,5

@@ -1,0 +1,13 @@
+teacher_id,school_id,last_name,first_name,middle_name,gender,birthdate,house_no_street,barangay,city_municipality,province,zip_code,contact_number,email,employment_status_id
+1,1,Cruz,Alex,,M,1981-02-02,1 Sample Street,Poblacion,City 1,Sample Province,10001,09170000001,teacher1@school1.example,1
+2,2,Ramos,Bianca,,F,1982-03-03,2 Sample Street,Poblacion,City 2,Sample Province,10002,09170000002,teacher2@school2.example,2
+3,3,Castillo,Carlos,,M,1983-04-04,3 Sample Street,Poblacion,City 3,Sample Province,10003,09170000003,teacher3@school3.example,3
+4,1,Bautista,Diana,,F,1984-05-05,4 Sample Street,Poblacion,City 1,Sample Province,10001,09170000004,teacher4@school1.example,1
+5,2,Cruz,Emmanuel,,M,1985-06-06,5 Sample Street,Poblacion,City 2,Sample Province,10002,09170000005,teacher5@school2.example,2
+6,3,Ramos,Faith,,F,1986-07-07,6 Sample Street,Poblacion,City 3,Sample Province,10003,09170000006,teacher6@school3.example,3
+7,1,Castillo,Gabriel,,M,1987-08-08,7 Sample Street,Poblacion,City 1,Sample Province,10001,09170000007,teacher7@school1.example,1
+8,2,Bautista,Hannah,,F,1988-09-09,8 Sample Street,Poblacion,City 2,Sample Province,10002,09170000008,teacher8@school2.example,2
+9,3,Cruz,Ivan,,M,1989-10-10,9 Sample Street,Poblacion,City 3,Sample Province,10003,09170000009,teacher9@school3.example,3
+10,1,Ramos,Julia,,F,1990-11-11,10 Sample Street,Poblacion,City 1,Sample Province,10001,09170000010,teacher10@school1.example,1
+11,2,Castillo,Kevin,,M,1991-12-12,11 Sample Street,Poblacion,City 2,Sample Province,10002,09170000011,teacher11@school2.example,2
+12,3,Bautista,Lara,,F,1992-01-13,12 Sample Street,Poblacion,City 3,Sample Province,10003,09170000012,teacher12@school3.example,3
