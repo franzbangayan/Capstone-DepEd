@@ -57,14 +57,16 @@ const printReport = (reportType, reports, title) => {
   const definition = definitions[reportType]
   if (!definition) return
 
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer')
+  // Keep this as a direct user-initiated popup. Some browsers open a blank
+  // tab when noopener/noreferrer is supplied while writing a new document.
+  const printWindow = window.open('', '_blank')
   if (!printWindow) return
   const header = definition.heading.map((cell) => `<th>${escapeHtml(cell)}</th>`).join('')
   const body = definition.rows.length
     ? definition.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')
     : `<tr><td colspan="${definition.heading.length}">No data found for this report.</td></tr>`
 
-  printWindow.document.write(`<!doctype html><html><head><title>${escapeHtml(title)}</title>
+  const documentHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
     <style>
       @page { size: landscape; margin: 12mm; }
       * { box-sizing: border-box; }
@@ -80,7 +82,9 @@ const printReport = (reportType, reports, title) => {
     <h1>${escapeHtml(title)}</h1>
     <p>${escapeHtml(reports?.school_year?.label || 'Active school year')}</p>
     <table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>
-    </body></html>`)
+    </body></html>`
+  printWindow.document.open()
+  printWindow.document.write(documentHtml)
   printWindow.document.close()
   printWindow.focus()
   printWindow.setTimeout(() => {
