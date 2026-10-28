@@ -8,6 +8,7 @@ import api from '../api'
 import { confirmDialog } from '../components/ConfirmDialog'
 
 const ACTIVE_DATE = '9999-12-31'
+const TEACHERS_PAGE_SIZE = 10
 
 const listData = (response) => (
   Array.isArray(response.data) ? response.data : response.data.results || []
@@ -27,6 +28,7 @@ const TeachersPage = () => {
   const [scheduleTeacher, setScheduleTeacher] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [page, setPage] = useState(1)
 
   const loadTeachers = useCallback(async () => {
     setLoading(true)
@@ -54,6 +56,8 @@ const TeachersPage = () => {
   }, [])
 
   useEffect(() => {
+    // Loading remote teacher data is an intentional effect-side state update.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTeachers()
   }, [loadTeachers])
 
@@ -94,6 +98,23 @@ const TeachersPage = () => {
       })
   }, [teachers, loadLimits, specializations, subjectNameById, statusNameById, search, filterStatus])
 
+  const pageCount = Math.max(1, Math.ceil(displayTeachers.length / TEACHERS_PAGE_SIZE))
+  const safePage = Math.min(page, pageCount)
+  const visibleTeachers = displayTeachers.slice(
+    (safePage - 1) * TEACHERS_PAGE_SIZE,
+    safePage * TEACHERS_PAGE_SIZE,
+  )
+
+  const handleSearchChange = (value) => {
+    setSearch(value)
+    setPage(1)
+  }
+
+  const handleStatusChange = (value) => {
+    setFilterStatus(value)
+    setPage(1)
+  }
+
   const openAdd = () => {
     setEditingTeacher(null)
     setShowModal(true)
@@ -125,11 +146,11 @@ const TeachersPage = () => {
       <div className="toolbar">
         <div className="search-wrap">
           <IconSearch />
-          <input className="input" type="text" placeholder="Search by name or specialization…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input className="input" type="text" placeholder="Search by name or specialization…" value={search} onChange={(e) => handleSearchChange(e.target.value)} />
         </div>
 
         <div className="select-wrap">
-          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+          <select value={filterStatus} onChange={(e) => handleStatusChange(e.target.value)}>
             <option>All</option>
             {employmentStatuses.map((item) => <option key={item.status_id}>{item.status_name}</option>)}
           </select>
@@ -161,7 +182,7 @@ const TeachersPage = () => {
             ) : displayTeachers.length === 0 ? (
               <tr><td colSpan={7} className="table-empty-cell">No teachers found.</td></tr>
             ) : (
-              displayTeachers.map((teacher) => (
+              visibleTeachers.map((teacher) => (
                 <tr key={teacher.teacher_id}>
                   <td>{teacher.last_name}</td>
                   <td>{teacher.first_name}</td>
@@ -181,7 +202,16 @@ const TeachersPage = () => {
         </table>
 
         <div className="table-footer">
-          <span className="table-count">Showing {displayTeachers.length} of {teachers.length} teachers</span>
+          <span className="table-count">
+            Showing {displayTeachers.length ? (safePage - 1) * TEACHERS_PAGE_SIZE + 1 : 0}–{Math.min(safePage * TEACHERS_PAGE_SIZE, displayTeachers.length)} of {displayTeachers.length} filtered teachers ({teachers.length} total)
+          </span>
+          {pageCount > 1 && (
+            <div className="teacher-pagination">
+              <button className="btn btn-outline btn-sm" onClick={() => setPage((current) => current - 1)} disabled={safePage === 1}>Previous</button>
+              <span>Page {safePage} of {pageCount}</span>
+              <button className="btn btn-outline btn-sm" onClick={() => setPage((current) => current + 1)} disabled={safePage === pageCount}>Next</button>
+            </div>
+          )}
         </div>
       </div>
 
