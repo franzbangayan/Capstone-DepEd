@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.contrib.auth import authenticate
 from rest_framework import generics, viewsets, status
 from rest_framework.exceptions import ValidationError
@@ -323,6 +325,234 @@ class ClearGeneratedLoadsView(APIView):
         )
 
 
+class ReportsView(APIView):
+    """Return the three live reports used by the Reports page.
+
+    Reports are calculated from current sections, subject offerings, teachers,
+    teaching loads, and active load limits.  The optional ``school_year``
+    query parameter is the year_start value (for example, ``2026``).  When it
+    is omitted, the active school year is used.
+    """
+    permission_classes = [IsAuthenticated]
+
+    @staticmethod
+    def _periods_required(hours):
+        return max(1, int(round(float(hours))))
+
+    def get(self, request):
+        school_id = request.user.school_id_id
+        year_value = request.query_params.get('school_year')
+        active_year = SchoolYear.objects.filter(school_id=school_id, is_active=True).first()
+
+        if year_value in (None, '', 'null', 'undefined'):
+            selected_year = active_year
+        else:
+            try:
+                selected_year = SchoolYear.objects.filter(
+                    school_id=school_id, year_start=int(year_value)
+                ).first()
+            except (TypeError, ValueError):
+                return Response(
+                    {'detail': 'school_year must be a valid starting year.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        sections_qs = Section.objects.filter(
+            school_id=school_id
+        ).select_related('grade_level', 'strand', 'school_year')
+
+        if selected_year:
+            sections_qs = sections_qs.filter(school_year=selected_year)
+
+        education_level = request.query_params.get('education_level')
+        grade_level = request.query_params.get('grade_level')
+        strand_name = request.query_params.get('strand')
+
+        if education_level and education_level != 'All':
+            sections_qs = sections_qs.filter(
+                grade_level__education_level=education_level
+            )
+        if grade_level and grade_level != 'All Levels':
+            sections_qs = sections_qs.filter(
+                grade_level__grade_name=grade_level
+            )
+        if strand_name and strand_name != 'N/A':
+            sections_qs = sections_qs.filter(
+                strand__strand_name=strand_name
+            )
+
+        sections = list(sections_qs)
+        section_ids = [section.section_id for section in sections]
+
+        offerings = list(
+            SubjectOffering.objects.filter(
+                grade_level_id__in={section.grade_level_id for section in sections},
+                subject__school_id=school_id,
+            ).select_related('subject', 'strand', 'grade_level')
+        ) if sections else []
+
+        offerings_by_scope = defaultdict(list)
+        for offering in offerings:
+            offerings_by_scope[(offering.grade_level_id, offering.strand_id)].append(
+                offering
+            )
+
+        loads = list(
+            TeachingLoad.objects.filter(
+                section_id__in=section_ids
+            ).select_related(
+                'teacher', 'section', 'offering', 'offering__subject'
+            ).order_by(
+                'section_id', 'offering_id', 'day', 'time_start'
+            )
+        ) if section_ids else []
+
+        load_groups = {}
+        for load in loads:
+            key = (load.teacher_id, load.section_id, load.offering_id)
+            group = load_groups.setdefault(key, {
+                'teacher_id': load.teacher_id,
+                'teacher': load.teacher.full_name,
+                'section_id': load.section_id,
+                'section': load.section.section_name,
+                'grade_level': load.section.grade_level.grade_name,
+                'offering_id': load.offering_id,
+                'subject': load.offering.subject.subject_name,
+                'hours_per_week': float(load.offering.hours_per_week),
+                'periods_scheduled': 0,
+                'is_manual': False,
+                'schedule': [],
+            })
+            group['periods_scheduled'] += 1
+            group['is_manual'] = group['is_manual'] or load.is_manual_override
+            group['schedule'].append({
+                'day': load.day,
+                'time_start': load.time_start.strftime('%H:%M'),
+                'time_end': load.time_end.strftime('%H:%M'),
+                'room': load.room_assigned,
+            })
+
+        assigned_by_pair = defaultdict(list)
+        for load in loads:
+            assigned_by_pair[(load.section_id, load.offering_id)].append(load)
+
+        teaching_load_summary = sorted(
+            load_groups.values(),
+            key=lambda row: (
+                row['teacher'], row['section'], row['subject']
+            ),
+        )
+
+        unassigned = []
+        for section in sections:
+            scope_key = (section.grade_level_id, section.strand_id)
+            for offering in offerings_by_scope.get(scope_key, []):
+                pair_loads = assigned_by_pair.get(
+                    (section.section_id, offering.offering_id), []
+                )
+                required = self._periods_required(offering.hours_per_week)
+                assigned_periods = len(pair_loads)
+                if assigned_periods >= required:
+                    continue
+
+                unassigned.append({
+                    'section_id': section.section_id,
+                    'section': section.section_name,
+                    'grade_level': section.grade_level.grade_name,
+                    'offering_id': offering.offering_id,
+                    'subject': offering.subject.subject_name,
+                    'hours_per_week': float(offering.hours_per_week),
+                    'required_periods': required,
+                    'assigned_periods': assigned_periods,
+                    'remaining_periods': required - assigned_periods,
+                    'status': 'Unassigned' if assigned_periods == 0 else 'Partial',
+                })
+
+        teachers = Teacher.objects.filter(
+            school_id=school_id
+        ).select_related('employment_status').order_by('last_name', 'first_name')
+
+        teacher_hours = defaultdict(float)
+        counted_assignments = set()
+        offering_hours = {
+            offering.offering_id: float(offering.hours_per_week)
+            for offering in offerings
+        }
+        for load in loads:
+            key = (load.teacher_id, load.section_id, load.offering_id)
+            if key in counted_assignments:
+                continue
+            counted_assignments.add(key)
+            teacher_hours[load.teacher_id] += offering_hours.get(
+                load.offering_id, float(load.offering.hours_per_week)
+            )
+
+        workload_balance = []
+        for teacher in teachers:
+            limit = teacher.current_load_limit
+            maximum = float(limit.max_load_hours) if limit else None
+            assigned = round(teacher_hours.get(teacher.teacher_id, 0.0), 2)
+            remaining = round(maximum - assigned, 2) if maximum is not None else None
+            utilization = (
+                round((assigned / maximum) * 100, 1)
+                if maximum and maximum > 0 else None
+            )
+
+            if maximum is None:
+                load_status = 'No active limit'
+            elif assigned > maximum:
+                load_status = 'Over capacity'
+            elif assigned == 0:
+                load_status = 'Unallocated'
+            elif assigned >= maximum:
+                load_status = 'At capacity'
+            elif assigned < maximum * 0.8:
+                load_status = 'Underloaded'
+            else:
+                load_status = 'Balanced'
+
+            workload_balance.append({
+                'teacher_id': teacher.teacher_id,
+                'teacher': teacher.full_name,
+                'employment_status': teacher.employment_status.status_name,
+                'assigned_hours': assigned,
+                'maximum_hours': maximum,
+                'remaining_hours': remaining,
+                'utilization_percent': utilization,
+                'status': load_status,
+            })
+
+        assigned_hours_total = round(sum(teacher_hours.values()), 2)
+        capacity_total = round(sum(
+            row['maximum_hours'] or 0 for row in workload_balance
+        ), 2)
+
+        return Response({
+            'school_year': (
+                {
+                    'year_start': selected_year.year_start,
+                    'year_end': selected_year.year_end,
+                    'label': f'{selected_year.year_start}–{selected_year.year_end}',
+                }
+                if selected_year else None
+            ),
+            'summary': {
+                'sections': len(sections),
+                'teaching_assignments': len(teaching_load_summary),
+                'scheduled_periods': len(loads),
+                'unassigned_loads': len(unassigned),
+                'teachers': len(workload_balance),
+                'assigned_hours': assigned_hours_total,
+                'available_capacity': capacity_total,
+            },
+            'teaching_load_summary': teaching_load_summary,
+            'unassigned_load_report': unassigned,
+            'workload_balance_report': workload_balance,
+        }, status=status.HTTP_200_OK)
+
+
+
+
 class GenerationLogViewSet(viewsets.ModelViewSet):
     """
     Read-only access to generation history.
@@ -330,12 +560,20 @@ class GenerationLogViewSet(viewsets.ModelViewSet):
 
     queryset = GenerationLog.objects.all()
     serializer_class = GenerationLogSerializer
+    permission_classes = [IsAuthenticated]
     http_method_names = ['get', 'head', 'options']
 
     def get_queryset(self):
-        return GenerationLog.objects.filter(
-        school_id=self.request.user.school_id_id
-    ).order_by('-log_id')
+        queryset = GenerationLog.objects.filter(
+            school_id=self.request.user.school_id_id
+        )
+        year_value = self.request.query_params.get('school_year')
+        if year_value not in (None, '', 'null', 'undefined'):
+            try:
+                queryset = queryset.filter(school_year__year_start=int(year_value))
+            except (TypeError, ValueError):
+                return queryset.none()
+        return queryset.order_by('-log_id')
 
 
 class ManualAssignmentView(APIView):

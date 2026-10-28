@@ -1,3 +1,5 @@
+import math
+import random
 from datetime import time
 from time import perf_counter
 
@@ -45,6 +47,34 @@ PERIODS_BY_SHIFT = {
         (6, time(16, 40), time(17, 30)),
     ],
 }
+
+# A teacher's working day is 8 hours (6 teaching + 2 other tasks, DepEd
+# Order No. 5, s. 2024). Every period a teacher teaches on one day must fit
+# inside a window this long, measured from first start to last end.
+WORKDAY_MINUTES = 8 * 60
+
+# Days on which classes pack toward the end of the shift instead of the start.
+MIRRORED_DAYS = ("Tuesday", "Thursday")
+
+# All periods in clock order, so "how far apart are two periods" can be
+# measured across both shifts.
+_ORDERED_PERIODS = PERIODS_BY_SHIFT["Morning"] + PERIODS_BY_SHIFT["Afternoon"]
+_PERIOD_INDEX = {
+    (start, end): index
+    for index, (_, start, end) in enumerate(_ORDERED_PERIODS)
+}
+
+
+_SHIFT_BY_PERIOD = {
+    (start, end): shift
+    for shift, periods in PERIODS_BY_SHIFT.items()
+    for _, start, end in periods
+}
+
+
+def _minutes(t):
+    return t.hour * 60 + t.minute
+
 
 # Classrooms available to the school. A section keeps one home room all
 # week; a Morning section and an Afternoon section can share the same room.
@@ -135,7 +165,10 @@ def _scoped_sections(
     sections = Section.objects.filter(school_id=school_id)
 
     if school_year:
-        sections = sections.filter(school_year__year_start=school_year)
+        sections = sections.filter(
+            school_year__school_id=school_id,
+            school_year__year_start=school_year,
+        )
 
     if education_level and education_level != "All":
         sections = sections.filter(grade_level__education_level=education_level)
@@ -262,7 +295,7 @@ def _assignment_key(section_id, offering_id):
     return section_id, offering_id
 
 
-def _load_existing_state(school_id):
+def _load_existing_state(school_id, school_year=None):
     """
     Build the in-memory state used by Greedy from existing TeachingLoad rows.
 
@@ -270,11 +303,19 @@ def _load_existing_state(school_id):
     3 periods must count as 3 scheduled periods for conflict checking but
     only ONE offering's hours when calculating weekly teacher load.
     """
-    loads = (
-        TeachingLoad.objects
-        .filter(section__school_id=school_id)
-        .select_related("teacher", "section", "offering", "offering__subject")
+    loads = TeachingLoad.objects.filter(
+        section__school_id=school_id
+    ).select_related(
+        "teacher", "section", "section__school_year",
+        "offering", "offering__subject",
     )
+
+    # Workload, conflicts, and room ownership are isolated by school year.
+    if school_year:
+        loads = loads.filter(
+            section__school_year__school_id=school_id,
+            section__school_year__year_start=school_year,
+        )
 
     teacher_hours = {}
     teacher_daily_periods = {}
@@ -367,12 +408,26 @@ def _find_slots(
     and the caller reports it as skipped, rather than silently stacking
     two periods of the same subject onto one day.
 
-    The existing teacher daily-period cap (_daily_limit) and the section/
-    room/teacher conflict checks are still enforced on every pick.
+    The existing teacher daily-period cap (_daily_limit), the 8-hour
+    workday window and the section/teacher conflict checks are enforced on
+    every pick. Within those limits it prefers periods next to the
+    teacher's other classes that day, so teachers get compact days.
     """
     teacher_id = teacher.teacher_id
     section_id = section.section_id
     daily_limit = _daily_limit(teacher)
+
+    # A teacher works one shift. Mixing a morning class and an afternoon
+    # class in the same week forces idle hours in between, so a teacher who
+    # already teaches one shift can only take sections of that same shift.
+    section_shift = _shift_of(section_id)
+    teacher_shifts = {
+        _SHIFT_BY_PERIOD[(key[1], key[2])]
+        for key in teacher_busy.get(teacher_id, set())
+        if (key[1], key[2]) in _SHIFT_BY_PERIOD
+    }
+    if teacher_shifts and teacher_shifts != {section_shift}:
+        return None
 
     day_order = sorted(
         DAYS,
@@ -394,14 +449,30 @@ def _find_slots(
         if existing_day_count >= daily_limit:
             continue
 
-        # Rotate the starting period by day and section so a subject does
-        # not land on the same hour every day and sections don't all pile
-        # onto period 1.
+        # Classes pack toward the start of the shift (Mon/Wed/Fri) or the
+        # end of it (Tue/Thu). Packing keeps each teacher's day one
+        # unbroken block; mirroring on alternate days means a subject does
+        # not sit at the same hour all week.
         periods = PERIODS_BY_SHIFT[_shift_of(section_id)]
-        offset = (section_id + DAYS.index(day)) % len(periods)
-        rotated = periods[offset:] + periods[:offset]
+        rotated = list(reversed(periods)) if day in MIRRORED_DAYS else list(periods)
 
-        for period, start, end in rotated:
+        existing = teacher_daily_periods.get((teacher_id, day), set())
+        existing_indexes = [
+            _PERIOD_INDEX[(key[1], key[2])]
+            for key in existing
+            if (key[1], key[2]) in _PERIOD_INDEX
+        ]
+        first_start = min((_minutes(key[1]) for key in existing), default=None)
+        last_end = max((_minutes(key[2]) for key in existing), default=None)
+
+        # Pick the period that leaves the fewest idle periods between this
+        # teacher's classes that day, so a teacher teaches in a block
+        # instead of "teach, wait, teach, wait". Ties fall back to the
+        # rotated order, which keeps a subject from landing on the same
+        # hour every day.
+        best = None
+
+        for position, (period, start, end) in enumerate(rotated):
             slot_key = (day, start, end)
 
             if slot_key in teacher_busy.get(teacher_id, set()):
@@ -409,28 +480,68 @@ def _find_slots(
             if slot_key in section_busy.get(section_id, set()):
                 continue
 
-            # A section stays in its home room and teachers move between
-            # rooms. Sections sharing a room are in opposite shifts, so a
-            # room can never double-book.
-            room = _home_room(section, rooms)
-            if room is None:
-                return None
+            gap = 0
+            if first_start is not None:
+                # 8-hour workday: first class start to last class end.
+                span = max(last_end, _minutes(end)) - min(first_start, _minutes(start))
+                if span > WORKDAY_MINUTES:
+                    continue
 
-            chosen.append(
-                {
-                    "day": day,
-                    "period": period,
-                    "time_start": start,
-                    "time_end": end,
-                    "room": room,
-                }
-            )
-            break
+                if existing_indexes:
+                    index = _PERIOD_INDEX[(start, end)]
+                    gap = min(abs(index - other) for other in existing_indexes) - 1
+
+            score = (gap, position)
+            if best is None or score < best[0]:
+                best = (score, period, start, end)
+
+        if best is None:
+            continue
+
+        # A section stays in its home room and teachers move between
+        # rooms. Sections sharing a room are in opposite shifts, so a
+        # room can never double-book.
+        room = _home_room(section, rooms)
+        if room is None:
+            return None
+
+        _, period, start, end = best
+        chosen.append(
+            {
+                "day": day,
+                "period": period,
+                "time_start": start,
+                "time_end": end,
+                "room": room,
+            }
+        )
 
     if len(chosen) < needed:
         return None
 
     return chosen
+
+
+def _no_slot_reason(section, candidates, capacity_candidates):
+    """
+    Same as _candidate_reason, but when every teacher check passed it
+    names the usual real cause of a skip: the section's subjects need more
+    periods a week than one shift has.
+    """
+    if candidates and capacity_candidates:
+        demand = sum(
+            float(offering.hours_per_week)
+            for offering in _applicable_offerings(section)
+        )
+        capacity = len(PERIODS_BY_SHIFT[_shift_of(section.section_id)]) * len(DAYS)
+        if demand > capacity:
+            return (
+                f"This section's subjects need {demand:g} periods a week, "
+                f"but a shift only has {capacity}. Reduce subject hours or "
+                f"the number of subjects."
+            )
+
+    return _candidate_reason(candidates, capacity_candidates)
 
 
 def _candidate_reason(candidates, capacity_candidates):
@@ -441,6 +552,155 @@ def _candidate_reason(candidates, capacity_candidates):
         return "All qualified teachers have reached their maximum weekly load."
 
     return "No qualified teacher has enough remaining capacity and conflict-free schedule slots."
+
+
+_FIXED = object()   # marks periods held by already-saved loads
+
+
+def _compact_gaps(school_id, assignments, school_year=None):
+    """
+    Closes idle periods in teachers' days after allocation.
+
+    Allocation spreads work across all five days, which can leave a teacher
+    with "teach, wait, teach" days. This pass looks at one class at a time
+    and either moves it into a free period of the same section on the same
+    day, or swaps it with another class of that section, whenever that
+    shrinks the idle periods in the affected teachers' days. Both teachers
+    must be free at their new period, nothing leaves the section's shift,
+    every teacher keeps the same classes on the same days (so daily caps and
+    weekly hours are untouched), and the 8-hour workday window still holds.
+    Saved loads are never moved. Slots are updated in place.
+    """
+    if not assignments:
+        return
+
+    state = _load_existing_state(school_id, school_year=school_year)
+
+    teacher_occ = {}   # (teacher_id, day) -> {period index: entry or _FIXED}
+    section_occ = {}   # (section_id, day) -> {period index: entry or _FIXED}
+
+    for (teacher_id, day), keys in state["teacher_daily_periods"].items():
+        for key in keys:
+            index = _PERIOD_INDEX.get((key[1], key[2]))
+            if index is not None:
+                teacher_occ.setdefault((teacher_id, day), {})[index] = _FIXED
+
+    for section_id, keys in state["section_busy"].items():
+        for key in keys:
+            index = _PERIOD_INDEX.get((key[1], key[2]))
+            if index is not None:
+                section_occ.setdefault((section_id, key[0]), {})[index] = _FIXED
+
+    entries = []
+    for assignment in assignments:
+        teacher_id = assignment["teacher"].teacher_id
+        section_id = assignment["section"].section_id
+        for slot in assignment["slots"]:
+            entry = {
+                "slot": slot,
+                "teacher": teacher_id,
+                "section": section_id,
+                "day": slot["day"],
+                "index": _PERIOD_INDEX[(slot["time_start"], slot["time_end"])],
+            }
+            entries.append(entry)
+            teacher_occ.setdefault((teacher_id, slot["day"]), {})[entry["index"]] = entry
+            section_occ.setdefault((section_id, slot["day"]), {})[entry["index"]] = entry
+
+    morning_count = len(PERIODS_BY_SHIFT["Morning"])
+
+    def shift_range(section_id):
+        if _shift_of(section_id) == "Morning":
+            return 0, morning_count - 1
+        return morning_count, len(_ORDERED_PERIODS) - 1
+
+    def day_cost(teacher_id, day):
+        """Idle periods inside the day; infinity if the 8-hour window breaks."""
+        indexes = sorted(teacher_occ.get((teacher_id, day), {}))
+        if len(indexes) < 2:
+            return 0
+        span = (
+            _minutes(_ORDERED_PERIODS[indexes[-1]][2])
+            - _minutes(_ORDERED_PERIODS[indexes[0]][1])
+        )
+        if span > WORKDAY_MINUTES:
+            return float("inf")
+        return indexes[-1] - indexes[0] + 1 - len(indexes)
+
+    def place(entry, new_index):
+        day = entry["day"]
+        old_index = entry["index"]
+        teacher_map = teacher_occ[(entry["teacher"], day)]
+        section_map = section_occ[(entry["section"], day)]
+        if teacher_map.get(old_index) is entry:
+            del teacher_map[old_index]
+        if section_map.get(old_index) is entry:
+            del section_map[old_index]
+        entry["index"] = new_index
+        teacher_map[new_index] = entry
+        section_map[new_index] = entry
+
+    # Simulated annealing over single moves and swaps within a section's
+    # day. Early on it may accept a slightly worse arrangement to escape a
+    # dead end, then it cools to accepting only improvements. A fixed seed
+    # keeps results repeatable.
+    rng = random.Random(20260101)
+    total_steps = min(400000, 150 * len(entries))
+    start_temp, end_temp = 0.8, 0.02
+
+    for step in range(total_steps):
+        temperature = start_temp + (end_temp - start_temp) * step / total_steps
+        entry = entries[rng.randrange(len(entries))]
+        teacher_id = entry["teacher"]
+        section_id = entry["section"]
+        day = entry["day"]
+        low, high = shift_range(section_id)
+        original = entry["index"]
+        target = rng.randint(low, high)
+        if target == original:
+            continue
+
+        occupant = section_occ.get((section_id, day), {}).get(target)
+        if occupant is _FIXED:
+            continue
+        if target in teacher_occ[(teacher_id, day)]:
+            continue
+
+        if occupant is None:
+            before = day_cost(teacher_id, day)
+            place(entry, target)
+            after = day_cost(teacher_id, day)
+            delta = after - before
+            if delta > 0 and (
+                after == float("inf") or rng.random() >= math.exp(-delta / temperature)
+            ):
+                place(entry, original)
+            continue
+
+        other_id = occupant["teacher"]
+        if other_id == teacher_id:
+            continue
+        if original in teacher_occ[(other_id, day)]:
+            continue
+
+        before = day_cost(teacher_id, day) + day_cost(other_id, day)
+        place(entry, target)
+        place(occupant, original)
+        after = day_cost(teacher_id, day) + day_cost(other_id, day)
+        delta = after - before
+        if delta > 0 and (
+            after == float("inf") or rng.random() >= math.exp(-delta / temperature)
+        ):
+            place(occupant, target)
+            place(entry, original)
+
+    for entry in entries:
+        period, start, end = _ORDERED_PERIODS[entry["index"]]
+        entry["slot"]["period"] = (
+            period
+        )
+        entry["slot"]["time_start"] = start
+        entry["slot"]["time_end"] = end
 
 
 def run_greedy_allocation(
@@ -493,7 +753,7 @@ def run_greedy_allocation(
         )
     )
 
-    state = _load_existing_state(school_id)
+    state = _load_existing_state(school_id, school_year=school_year)
 
     teacher_hours = state["teacher_hours"]
     teacher_daily_periods = state["teacher_daily_periods"]
@@ -541,12 +801,11 @@ def run_greedy_allocation(
             )
             continue
 
-        # Most-loaded first fills a teacher toward the weekly cap before
-        # opening another, so teachers carry full days. Teacher ID is the
-        # deterministic tie-breaker.
+        # Least-loaded first promotes a fairer distribution of teaching
+        # assignments while preserving deterministic teacher ordering.
         capacity_candidates.sort(
             key=lambda teacher: (
-                -teacher_hours.get(teacher.teacher_id, 0.0),
+                teacher_hours.get(teacher.teacher_id, 0.0),
                 teacher.teacher_id,
             )
         )
@@ -575,7 +834,8 @@ def run_greedy_allocation(
                 {
                     "section": section.section_name,
                     "subject": offering.subject.subject_name,
-                    "reason": _candidate_reason(
+                    "reason": _no_slot_reason(
+                        section,
                         candidates,
                         capacity_candidates,
                     ),
@@ -618,6 +878,8 @@ def run_greedy_allocation(
     # The algorithm itself is greedy and runs in memory first. Only after
     # that pass do we write TeachingLoad rows, preventing half-generated
     # schedules if the database write fails.
+    _compact_gaps(school_id, assignments, school_year=school_year)
+
     with transaction.atomic():
         for assignment in assignments:
             for slot in assignment["slots"]:
@@ -748,7 +1010,7 @@ def run_backtracking_allocation(
         )
     )
 
-    state = _load_existing_state(school_id)
+    state = _load_existing_state(school_id, school_year=school_year)
 
     teacher_hours = state["teacher_hours"]
     teacher_daily_periods = state["teacher_daily_periods"]
@@ -773,7 +1035,20 @@ def run_backtracking_allocation(
                 set(),
             ).add(key)
 
-    def release(teacher, section, slots, hours):
+    def snapshot_rooms():
+        """Copy only the two flat room maps used during search branches."""
+        return {
+            "by_section": rooms["by_section"].copy(),
+            "owners": rooms["owners"].copy(),
+        }
+
+    def restore_rooms(snapshot):
+        rooms["by_section"].clear()
+        rooms["by_section"].update(snapshot["by_section"])
+        rooms["owners"].clear()
+        rooms["owners"].update(snapshot["owners"])
+
+    def release(teacher, section, slots, hours, rooms_before=None):
         teacher_id = teacher.teacher_id
         section_id = section.section_id
 
@@ -789,6 +1064,11 @@ def run_backtracking_allocation(
                 (teacher_id, slot["day"]),
                 set(),
             ).discard(key)
+
+        # _home_room() mutates the room maps while trying a branch. Restore
+        # the exact snapshot that existed before this assignment was tried.
+        if rooms_before is not None:
+            restore_rooms(rooms_before)
 
     total = len(task_data)
 
@@ -824,10 +1104,10 @@ def run_backtracking_allocation(
             frames[depth] = {
                 "options": sorted(
                     candidates,
-                    # Fill teachers up toward their cap before opening a
-                    # new one, so each teacher carries many sections.
+                    # Prefer the least-loaded qualified teacher to
+                    # distribute assignments more fairly.
                     key=lambda teacher: (
-                        -teacher_hours.get(teacher.teacher_id, 0.0),
+                        teacher_hours.get(teacher.teacher_id, 0.0),
                         teacher.teacher_id,
                     ),
                 ),
@@ -847,6 +1127,7 @@ def run_backtracking_allocation(
                     section,
                     previous["slots"],
                     hours,
+                    previous.get("rooms_before"),
                 )
 
         advanced = False
@@ -862,6 +1143,8 @@ def run_backtracking_allocation(
 
                 path.append(None)
                 skips_in_path += 1
+                if depth + 1 < total:
+                    frames[depth + 1:] = [None] * (total - depth - 1)
                 advanced = True
                 break
 
@@ -879,6 +1162,11 @@ def run_backtracking_allocation(
             if teacher_hours.get(teacher.teacher_id, 0.0) + hours > float(limit.max_load_hours):
                 continue
 
+            # _find_slots() may reserve a home room before discovering that
+            # the complete assignment is infeasible. Keep a branch snapshot.
+            # The maps contain only scalar keys/values, so shallow copies are
+            # sufficient and much cheaper than deepcopy for every candidate.
+            rooms_before = snapshot_rooms()
             slots = _find_slots(
                 teacher,
                 section,
@@ -890,10 +1178,20 @@ def run_backtracking_allocation(
             )
 
             if slots is None:
+                restore_rooms(rooms_before)
                 continue
 
             reserve(teacher, section, slots, hours)
-            path.append({"teacher": teacher, "slots": slots})
+            path.append({
+                "teacher": teacher,
+                "slots": slots,
+                "rooms_before": rooms_before,
+            })
+            # A new parent choice changes teacher hours, busy slots, and room
+            # ownership. Cached descendant state must be rebuilt for the new
+            # branch.
+            if depth + 1 < total:
+                frames[depth + 1:] = [None] * (total - depth - 1)
             advanced = True
             break
 
@@ -919,7 +1217,7 @@ def run_backtracking_allocation(
                 {
                     "section": section.section_name,
                     "subject": offering.subject.subject_name,
-                    "reason": _candidate_reason([True], [True]),
+                    "reason": _no_slot_reason(section, [True], [True]),
                 }
             )
             continue
@@ -932,6 +1230,8 @@ def run_backtracking_allocation(
                 "slots": choice["slots"],
             }
         )
+
+    _compact_gaps(school_id, assignments, school_year=school_year)
 
     with transaction.atomic():
         for assignment in assignments:
@@ -1048,7 +1348,7 @@ def get_manual_assignment_data(
         ).select_related("grade_level", "school")
     )
 
-    state = _load_existing_state(school_id)
+    state = _load_existing_state(school_id, school_year=school_year)
     teacher_hours = state["teacher_hours"]
 
     teachers = list(
@@ -1143,7 +1443,7 @@ def manual_assign(school_id, section_id, offering_id, teacher_id, force=False):
     new ones atomically, so a failure leaves the old assignment untouched.
     """
     try:
-        section = Section.objects.select_related("school").get(
+        section = Section.objects.select_related("school", "school_year").get(
             pk=section_id, school_id=school_id
         )
         offering = SubjectOffering.objects.select_related("subject").get(
@@ -1185,7 +1485,10 @@ def manual_assign(school_id, section_id, offering_id, teacher_id, force=False):
             section=section, offering=offering
         ).delete()
 
-        state = _load_existing_state(school_id)
+        state = _load_existing_state(
+            school_id,
+            school_year=section.school_year.year_start,
+        )
 
         current = state["teacher_hours"].get(teacher.teacher_id, 0.0)
         if current + hours > float(limit.max_load_hours):
@@ -1206,7 +1509,8 @@ def manual_assign(school_id, section_id, offering_id, teacher_id, force=False):
         if slots is None:
             raise ManualAssignmentError(
                 f"No conflict-free slots for {teacher.full_name} on this "
-                f"subject and section."
+                f"subject and section. A teacher works one shift and needs "
+                f"free periods on all five days."
             )
 
         for slot in slots:
