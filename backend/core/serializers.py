@@ -54,20 +54,22 @@ class SchoolYearSerializer(serializers.ModelSerializer):
     class Meta:
         model = SchoolYear
         fields = '__all__'
+        read_only_fields = ['school']
 
     def create(self, validated_data):
-        # Enforce "only one active school year at a time" per the model's
-        # documented convention. If this new record is being marked
-        # active, deactivate every other one first.
+        # Only one active school year is allowed per school.
         if validated_data.get('is_active'):
-            SchoolYear.objects.filter(is_active=True).update(is_active=False)
+            SchoolYear.objects.filter(
+                school_id=validated_data['school_id'], is_active=True
+            ).update(is_active=False)
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
         if validated_data.get('is_active'):
-            SchoolYear.objects.filter(is_active=True).exclude(pk=instance.pk).update(is_active=False)
+            SchoolYear.objects.filter(
+                school_id=instance.school_id, is_active=True
+            ).exclude(pk=instance.pk).update(is_active=False)
         return super().update(instance, validated_data)
-
 
 class TrackSerializer(serializers.ModelSerializer):
     class Meta:
@@ -91,6 +93,7 @@ class SubjectSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subject
         fields = '__all__'
+        read_only_fields = ['school']
 
 
 class EmploymentStatusSerializer(serializers.ModelSerializer):
@@ -127,6 +130,14 @@ class SectionSerializer(serializers.ModelSerializer):
         model = Section
         fields = '__all__'
         read_only_fields = ['school']   # backend sets this from the logged-in user
+
+    def validate_school_year(self, school_year):
+        request = self.context.get('request')
+        if request and school_year.school_id != request.user.school_id_id:
+            raise serializers.ValidationError(
+                'School year must belong to your school.'
+            )
+        return school_year
  
  
 

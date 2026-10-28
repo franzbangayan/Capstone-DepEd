@@ -1,5 +1,6 @@
 from django.contrib.auth import authenticate
 from rest_framework import generics, viewsets, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -61,6 +62,15 @@ class SchoolYearViewSet(viewsets.ModelViewSet):
     queryset = SchoolYear.objects.all()
     serializer_class = SchoolYearSerializer
 
+    def get_queryset(self):
+        return SchoolYear.objects.filter(school_id=self.request.user.school_id_id)
+
+    def perform_create(self, serializer):
+        school_id = self.request.user.school_id_id
+        if school_id is None:
+            raise ValidationError({'school_id': 'Your account must be associated with a school.'})
+        serializer.save(school_id=school_id)
+
 
 class TrackViewSet(viewsets.ModelViewSet):
     queryset = Track.objects.all()
@@ -80,6 +90,15 @@ class GradeLevelViewSet(viewsets.ModelViewSet):
 class SubjectViewSet(viewsets.ModelViewSet):
     queryset = Subject.objects.all()
     serializer_class = SubjectSerializer
+
+    def get_queryset(self):
+        return Subject.objects.filter(school_id=self.request.user.school_id_id)
+
+    def perform_create(self, serializer):
+        school_id = self.request.user.school_id_id
+        if school_id is None:
+            raise ValidationError({'school_id': 'Your account must be associated with a school.'})
+        serializer.save(school_id=school_id)
 
 
 # class UserViewSet(viewsets.ModelViewSet):
@@ -116,6 +135,31 @@ class TeacherSpecializationViewSet(viewsets.ModelViewSet):
     queryset = TeacherSpecialization.objects.all()
     serializer_class = TeacherSpecializationSerializer
 
+    def get_queryset(self):
+        return TeacherSpecialization.objects.filter(
+            teacher__school_id=self.request.user.school_id_id
+        )
+
+    def perform_create(self, serializer):
+        self._validate_school(
+            serializer.validated_data['teacher'],
+            serializer.validated_data['subject'],
+        )
+        serializer.save()
+
+    def perform_update(self, serializer):
+        teacher = serializer.validated_data.get('teacher', serializer.instance.teacher)
+        subject = serializer.validated_data.get('subject', serializer.instance.subject)
+        self._validate_school(teacher, subject)
+        serializer.save()
+
+    def _validate_school(self, teacher, subject):
+        school_id = self.request.user.school_id_id
+        if teacher.school_id != school_id or subject.school_id != school_id:
+            raise ValidationError(
+                'Teacher and subject must belong to your school.'
+            )
+
 
 class SectionViewSet(viewsets.ModelViewSet):
     queryset = Section.objects.all()   # kept for router introspection only
@@ -136,6 +180,24 @@ class SectionViewSet(viewsets.ModelViewSet):
 class SubjectOfferingViewSet(viewsets.ModelViewSet):
     queryset = SubjectOffering.objects.all()
     serializer_class = SubjectOfferingSerializer
+
+    def get_queryset(self):
+        return SubjectOffering.objects.filter(
+            subject__school_id=self.request.user.school_id_id
+        )
+
+    def perform_create(self, serializer):
+        self._validate_subject_school(serializer.validated_data['subject'])
+        serializer.save()
+
+    def perform_update(self, serializer):
+        subject = serializer.validated_data.get('subject', serializer.instance.subject)
+        self._validate_subject_school(subject)
+        serializer.save()
+
+    def _validate_subject_school(self, subject):
+        if subject.school_id != self.request.user.school_id_id:
+            raise ValidationError({'subject': 'Subject must belong to your school.'})
 
 
 class TeachingLoadViewSet(viewsets.ModelViewSet):

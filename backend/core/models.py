@@ -12,7 +12,7 @@ from django.contrib.auth.models import AbstractUser
 # - TeacherSpecialization: added date_started/date_ended.
 # - Subject, GradeLevel, Track, Strand: added
 #   date_created/date_closed.
-# - SchoolYear: added is_active flag.
+# - Subject and SchoolYear belong to a school; SchoolYear also has is_active.
 # - TeachingLoad: added day, time_start, time_end, room_assigned.
 #
 # Sentinel convention: "still active" records use date(9999, 12, 31)
@@ -38,11 +38,12 @@ class School(models.Model):
 
 class SchoolYear(models.Model):
     school_year_id = models.AutoField(primary_key=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id')
     year_start = models.IntegerField()
     year_end = models.IntegerField()
     is_active = models.BooleanField(
         default=False,
-        help_text="Only one SchoolYear should be active at a time; "
+        help_text="Only one SchoolYear per school should be active at a time; "
                   "switching is a manual action performed by the principal."
     )
 
@@ -96,6 +97,7 @@ class GradeLevel(models.Model):
 
 class Subject(models.Model):
     subject_id = models.AutoField(primary_key=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, db_column='school_id')
     subject_name = models.CharField(max_length=100)
     subject_type = models.CharField(max_length=50, blank=True, null=True)
     date_created = models.DateField(auto_now_add=True)

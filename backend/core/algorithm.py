@@ -83,11 +83,13 @@ def _periods_needed(hours_per_week):
     return max(1, int(round(float(hours_per_week))))
 
 
-def _resolve_school_year_id(school_year_start):
+def _resolve_school_year_id(school_id, school_year_start):
     if not school_year_start:
         return None
 
-    sy = SchoolYear.objects.filter(year_start=school_year_start).first()
+    sy = SchoolYear.objects.filter(
+        school_id=school_id, year_start=school_year_start
+    ).first()
     return sy.school_year_id if sy else None
 
 
@@ -106,7 +108,7 @@ def _log_generation(
 
     GenerationLog.objects.create(
         school_id=school_id,
-        school_year_id=_resolve_school_year_id(school_year),
+        school_year_id=_resolve_school_year_id(school_id, school_year),
         education_level=education_level,
         grade_level=grade_level,
         strand=strand,
@@ -149,7 +151,8 @@ def _scoped_sections(
 
 def _applicable_offerings(section):
     offerings = SubjectOffering.objects.filter(
-        grade_level=section.grade_level
+        grade_level=section.grade_level,
+        subject__school_id=section.school_id,
     )
 
     if section.strand_id:
@@ -1231,6 +1234,7 @@ def manual_unassign(school_id, section_id, offering_id):
         section_id=section_id,
         section__school_id=school_id,
         offering_id=offering_id,
+        offering__subject__school_id=school_id,
     ).delete()
 
     if deleted == 0:
