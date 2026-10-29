@@ -1,5 +1,3 @@
-/* Written for the existing Sidebar markup. The "Department of Education" line,
-   "Main Menu" heading and tagline are drawn with ::before/::after so no JSX change is needed. */
 .sidebar {
   width: 240px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
   display: flex; flex-direction: column;
@@ -8,30 +6,16 @@
 
 .sidebar-logo {
   position: relative; display: flex; align-items: center; gap: 8px;
-  padding: 36px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.12);
+  padding: 20px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.12);
 }
-.sidebar-logo::before {
-  content: 'Department of Education'; position: absolute; top: 14px; left: 18px;
-  font-size: 9px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.5);
+.sidebar-deped-logo {
+  width: 34px; height: 34px; flex-shrink: 0; margin-left: -6px;
+  padding: 2px; border-radius: 50%; background: #fff; object-fit: contain;
 }
-/* Logo mark: hide the dark tile, recolor the four squares */
-.sidebar-logo svg { width: 34px; height: 34px; flex-shrink: 0; margin-left: -6px; }
-.sidebar-logo svg rect:nth-child(1) { fill: transparent; }
-.sidebar-logo svg rect:nth-child(2) { fill: #ffffff; }
-.sidebar-logo svg rect:nth-child(3) { fill: #BF2026; }
-.sidebar-logo svg rect:nth-child(4) { fill: #BF2026; }
-.sidebar-logo svg rect:nth-child(5) { fill: #93c5fd; }
 
 .sidebar-logo-text { min-width: 0; }
 .sidebar-logo-name { color: #fff; font-size: 17px; font-weight: 700; line-height: 1.15; }
-/* Replaces the "Admin System" text with the tagline from the design.
-   Delete these two rules to show the original JSX text again. */
-.sidebar-logo-tag { font-size: 0; margin-top: 3px; }
-.sidebar-logo-tag::after {
-  content: 'Loading & Assignment System'; display: block; max-width: 130px;
-  font-size: 9px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; line-height: 1.45;
-  color: rgba(255,255,255,.6);
-}
+.sidebar-logo-tag { margin-top: 3px; font-size: 9px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; line-height: 1.45; color: rgba(255,255,255,.6); }
 
 .sidebar-nav { flex: 1; padding: 10px 0; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; }
 .sidebar-nav::before {

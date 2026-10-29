@@ -4,8 +4,8 @@
 .login-stripe { height: 5px; background: linear-gradient(90deg, var(--navy) 0 70%, var(--red) 70% 100%); }
 .login-body { padding: 32px; }
 .login-logo-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 24px; }
-.login-logo-icon { width: 52px; height: 52px; background: var(--navy); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
-.login-app-name { font-size: 18px; font-weight: 700; color: var(--navy); }
+.login-deped-logo { width: 120px; height: 100px; padding: 3px; border-radius: 10%; background: #fff; object-fit: contain; margin-bottom: 10px; }
+.login-app-name { font-size: 30px; font-weight: 700; color: var(--navy); }
 .login-heading { text-align: center; margin-bottom: 22px; }
 .login-heading h2 { font-size: 19px; font-weight: 600; color: #0f172a; }
 .login-heading p { font-size: 13px; color: var(--muted); margin-top: 4px; }

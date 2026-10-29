@@ -1,6 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom"
 import '../styles/Sidebar.css'
-import LogoMark from './LogoMark'
 import { IconGrid, IconUsers, IconBook, IconZap, IconBarChart, IconLogOut } from './Icons'
 
 const NAV_ITEMS = [
@@ -13,6 +12,8 @@ const NAV_ITEMS = [
 
 const Sidebar = () => {
   const navigate = useNavigate()
+  const username = localStorage.getItem('username') || 'User'
+  const avatarInitial = username.trim().charAt(0).toUpperCase() || 'U'
 
   const handleLogout = () => {
     navigate('/logout')
@@ -21,10 +22,10 @@ const Sidebar = () => {
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
-        <LogoMark size={36} />
+        <img className="sidebar-deped-logo" src="/assets/deped-logo.jpg" alt="Department of Education logo" />
         <div className="sidebar-logo-text">
-          <div className="sidebar-logo-name">TeachLoad</div>
-          <div className="sidebar-logo-tag">Admin System</div>
+          <div className="sidebar-logo-name">Schedura</div>
+          <div className="sidebar-logo-tag">Teacher Loading System</div>
         </div>
       </div>
 
@@ -46,9 +47,9 @@ const Sidebar = () => {
 
       <div className="sidebar-footer">
         <div className="sidebar-user">
-          <div className="sidebar-avatar">P</div>
+          <div className="sidebar-avatar">{avatarInitial}</div>
           <div>
-            <div className="sidebar-user-name">Principal</div>
+            <div className="sidebar-user-name">{username}</div>
             <div className="sidebar-user-role">Administrator</div>
           </div>
         </div>

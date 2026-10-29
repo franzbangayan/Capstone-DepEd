@@ -81,6 +81,7 @@ const handleSubmit = async (e) => {
     if (method === "login") {
       localStorage.setItem(ACCESS_TOKEN, res.data.access);
       localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+      localStorage.setItem("username", username);
       localStorage.setItem("school_id", Number(res.data.school_id));
 
       // This requires the login API to return school_id
@@ -119,21 +120,14 @@ const handleSubmit = async (e) => {
                     <div className="login-stripe" />
                     <div className="login-body">
                         <div className="login-logo-wrap">
-                            <div className="login-logo-icon">
-                                <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
-                                    <rect x="4"  y="4"  width="13" height="13" rx="2.5" fill="#2563eb" />
-                                    <rect x="23" y="4"  width="13" height="13" rx="2.5" fill="#60a5fa" />
-                                    <rect x="4"  y="23" width="13" height="13" rx="2.5" fill="#93c5fd" />
-                                    <rect x="23" y="23" width="13" height="13" rx="2.5" fill="#2563eb" />
-                                </svg>
-                            </div>
-                            <div className="login-app-name">TeachLoad</div>
+                            <img className="login-deped-logo" src="/assets/deped-logo.png" alt="Department of Education logo" />
+                            <div className="login-app-name">Schedura</div>
                         
                         </div>
 
                         <div className="login-heading">
                             <h2>{name}</h2>
-                            <p>Teacher Loading &amp; Assignment System</p>
+                            <p>Teacher Loading System</p>
                         </div>
 
                         {error !== "" && (
@@ -212,7 +206,7 @@ const handleSubmit = async (e) => {
                         </form>
                     </div>
                 </div>
-                <p className="login-footer">Department of Education · Authorized Users Only</p>
+                <p className="login-footer">Authorized Users Only</p>
             </div>
         </div>
     );
