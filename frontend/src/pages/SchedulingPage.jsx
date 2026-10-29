@@ -1,7 +1,6 @@
 import '../styles/SchedulingPage.css'
 import { useState, useEffect } from 'react'
 import api from '../api'
-import { confirmDialog } from '../components/ConfirmDialog'
 import { IconZap, IconChevronDown, IconCheck, IconAlert, IconLayers } from '../components/Icons'
 import ManualAssignmentModal from '../modals/ManualAssignmentModal'
 
@@ -69,10 +68,8 @@ const SchedulingPage = () => {
   const [strand,     setStrand]     = useState('N/A')
 
   const [generating, setGenerating] = useState(false)
-  const [clearing, setClearing]     = useState(false)
   const [error, setError]           = useState(null)
   const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
-  const [algorithm, setAlgorithm] = useState('greedy')
   const [showManual, setShowManual] = useState(false)
 
   const isAll = eduLevel === 'All'
@@ -119,7 +116,7 @@ const SchedulingPage = () => {
       }
 
       const res = await api.post('/api/generate-load/', {
-        algorithm: algorithm,
+        algorithm: 'greedy',
         school_year: selectedSchoolYear.year_start,
         education_level: eduLevel,
         grade_level: gradeLevel,
@@ -136,34 +133,6 @@ const SchedulingPage = () => {
 
   const handlePrint = () => {
     window.print()
-  }
-
-  const handleClear = async () => {
-    if (!selectedSchoolYear) return
-    if (!(await confirmDialog({
-      title: 'Clear generated loads?',
-      message: 'All algorithm-generated teaching loads in this scope will be removed. Manually assigned loads are kept.',
-      confirmLabel: 'Clear loads',
-      danger: true,
-    }))) return
-
-    setClearing(true)
-    setError(null)
-    try {
-      const res = await api.post('/api/clear-generated-loads/', {
-        school_year: selectedSchoolYear.year_start,
-        education_level: eduLevel,
-        grade_level: gradeLevel,
-        strand: strand,
-      })
-      setResults(null)
-      alert(`Cleared ${res.data.deleted_count} generated load${res.data.deleted_count === 1 ? '' : 's'}. You can generate again.`)
-    } catch (err) {
-      console.error(err)
-      setError('Failed to clear generated loads.')
-    } finally {
-      setClearing(false)
-    }
   }
 
   const assigned = results?.assigned || []
@@ -305,16 +274,8 @@ const SchedulingPage = () => {
             <IconZap /> {generating ? 'Generating...' : 'Generate Teaching Load'}
           </button>
 
-          <button className="btn btn-outline btn-full" onClick={() => setAlgorithm(algorithm === 'greedy' ? 'backtracking' : 'greedy')} disabled={clearing || generating}>
-            Toggle Algorithm: {algorithm === 'greedy' ? 'Greedy' : 'Backtracking'}
-          </button>
-
-          <button className="btn btn-outline btn-full" onClick={() => setShowManual(true)} disabled={!selectedSchoolYear || clearing || generating}>
+          <button className="btn btn-outline btn-full" onClick={() => setShowManual(true)} disabled={!selectedSchoolYear || generating}>
             Manual Assignment
-          </button>
-
-          <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
-            {clearing ? 'Clearing…' : 'Clear Generated Loads (For Testing)'}
           </button>
 
         </div>
@@ -356,7 +317,7 @@ const SchedulingPage = () => {
                 <div className="constraint-text warn" style={{ marginBottom: '12px' }}>
                   All {results.already_assigned_count} offering{results.already_assigned_count === 1 ? '' : 's'} in this scope
                   already {results.already_assigned_count === 1 ? 'has' : 'have'} a teaching load. Nothing new to generate —
-                  use "Clear Generated Loads" on the left if you want to re-run this scope.
+                  generate this scope again after reviewing the existing loads.
                 </div>
               )}
 
