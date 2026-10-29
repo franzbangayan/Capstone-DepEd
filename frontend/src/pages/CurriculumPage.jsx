@@ -335,7 +335,7 @@ const SectionsTab = () => {
                     <td className="td-muted">{schoolYearLabelById[s.school_year] || '—'}</td>
                     <td>
                       <div className="td-actions">
-                        <button className="btn btn-outline btn-sm" onClick={() => setScheduleSection(s)}>View Schedule</button>
+                        <button className="btn btn-outline btn-sm" onClick={() => setScheduleSection(s)}>View / Print Schedule</button>
                         <button className="btn-icon edit" onClick={() => openEdit(s)}><IconEdit /></button>
                         <button className="btn-icon del" onClick={() => deleteSection(s)}><IconTrash /></button>
                       </div>

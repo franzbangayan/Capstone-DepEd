@@ -191,7 +191,7 @@ const TeachersPage = () => {
                   <td>{teacher.maxLoad}</td>
                   <td>{teacher.specializations.length ? teacher.specializations.join(', ') : '—'}</td>
                   <td className="right">
-                    <button className="btn btn-outline btn-sm" onClick={() => setScheduleTeacher(teacher)}>View Schedule</button>
+                    <button className="btn btn-outline btn-sm" onClick={() => setScheduleTeacher(teacher)}>View / Print Schedule</button>
                     <button className="icon-btn" title="Edit" onClick={() => openEdit(teacher)}><IconEdit /></button>
                     <button className="icon-btn" title="Delete" onClick={() => deleteTeacher(teacher)}><IconTrash /></button>
                   </td>

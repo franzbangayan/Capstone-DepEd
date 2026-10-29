@@ -2,6 +2,7 @@ import '../styles/TeacherScheduleModal.css'
 import { useEffect, useState } from 'react'
 import { IconX } from '../components/Icons'
 import api from '../api'
+import { printSchedule } from '../utils/printSchedule'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
@@ -99,7 +100,15 @@ const SectionScheduleModal = ({ section, gradeName, onClose }) => {
   }, [section.section_id])
 
   const handlePrint = () => {
-    window.print()
+    printSchedule({
+      title,
+      subtitle: `Weekly Class Schedule · ${shift} Shift`,
+      days: DAYS,
+      periods: PERIODS,
+      gridByKey,
+      totalPeriods,
+      emptyMessage: 'No teaching load assigned yet for this section.',
+    })
   }
 
   const title = gradeName ? `${gradeName} - ${section.section_name}` : section.section_name
@@ -114,7 +123,7 @@ const SectionScheduleModal = ({ section, gradeName, onClose }) => {
             <p>{shift} shift · {totalPeriods} period{totalPeriods === 1 ? '' : 's'} per week</p>
           </div>
           <div className="schedule-toolbar-actions">
-            <button className="btn btn-primary btn-sm" onClick={handlePrint} disabled={loading}>Print</button>
+            <button className="btn btn-primary btn-sm" onClick={handlePrint} disabled={loading}>Print Schedule</button>
             <button className="modal-close" onClick={onClose}><IconX /></button>
           </div>
         </div>
