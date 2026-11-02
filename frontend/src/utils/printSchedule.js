@@ -1,3 +1,5 @@
+import { getSectionColors } from './scheduleColors'
+
 const escapeHtml = (value) => String(value ?? '')
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
@@ -19,6 +21,7 @@ const printStyles = `
   .time { width: 105px; background: #f8fafc; font-weight: 700; white-space: nowrap; }
   .cell { height: 47px; color: #9aa5b1; }
   .filled { background: #eff6ff; color: #1f2933; }
+  .filled { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .subject { font-weight: 700; }
   .meta { color: #52606d; font-size: 9px; margin-top: 2px; }
   .break { background: #f1f5f9; color: #6b7280; font-style: italic; }
@@ -39,6 +42,8 @@ export const printSchedule = ({ title, subtitle, days, periods, gridByKey, total
     return
   }
 
+  const sectionColors = getSectionColors(gridByKey)
+
   const header = days.map((day) => `<th>${escapeHtml(day)}</th>`).join('')
   const rows = periods.map((period) => {
     const time = `${formatTime(period.start)}–${formatTime(period.end)}`
@@ -49,7 +54,8 @@ export const printSchedule = ({ title, subtitle, days, periods, gridByKey, total
     const cells = days.map((day) => {
       const cell = gridByKey[`${day}|${period.start}`]
       if (!cell) return '<td class="cell">—</td>'
-      return `<td class="cell filled"><div class="subject">${escapeHtml(cell.subject)}</div><div class="meta">${escapeHtml(cell.section || cell.teacher)}</div><div class="meta">${escapeHtml(cell.room)}</div></td>`
+      const sectionColor = sectionColors.find((section) => section.sectionId === String(cell.sectionId))?.color
+      return `<td class="cell filled"${sectionColor ? ` style="background-color:${sectionColor}"` : ''}><div class="subject">${escapeHtml(cell.subject)}</div><div class="meta">${escapeHtml(cell.section || cell.teacher)}</div><div class="meta">${escapeHtml(cell.room)}</div></td>`
     }).join('')
     return `<tr><td class="time">${time}</td>${cells}</tr>`
   }).join('')

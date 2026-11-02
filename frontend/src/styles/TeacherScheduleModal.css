@@ -122,7 +122,8 @@
 
 .schedule-cell.filled {
   color: #1f2933;
-  background: #eff6ff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 
 .schedule-cell-subject {

@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { IconX } from '../components/Icons'
 import api from '../api'
 import { printSchedule } from '../utils/printSchedule'
+import { getSectionColors } from '../utils/scheduleColors'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
 
@@ -78,6 +79,7 @@ const TeacherScheduleModal = ({ teacher, onClose }) => {
           grid[key] = {
             subject: offering ? subjectNameById[offering.subject] : 'Unknown subject',
             section: sectionNameById[l.section] || 'Unknown section',
+            sectionId: l.section,
             room: l.room_assigned || '—',
           }
         })
@@ -104,6 +106,11 @@ const TeacherScheduleModal = ({ teacher, onClose }) => {
       emptyMessage: 'No teaching load assigned yet for this teacher.',
     })
   }
+
+  const sectionColors = getSectionColors(gridByKey)
+  const sectionColorById = new Map(
+    sectionColors.map(({ sectionId, color }) => [sectionId, color])
+  )
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
@@ -152,7 +159,11 @@ const TeacherScheduleModal = ({ teacher, onClose }) => {
                         {DAYS.map((day) => {
                           const cell = gridByKey[`${day}|${p.start}`]
                           return (
-                            <td key={day} className={cell ? 'schedule-cell filled' : 'schedule-cell'}>
+                            <td
+                              key={day}
+                              className={cell ? 'schedule-cell filled' : 'schedule-cell'}
+                              style={cell ? { backgroundColor: sectionColorById.get(String(cell.sectionId)) || '#eff6ff' } : undefined}
+                            >
                               {cell ? (
                                 <>
                                   <div className="schedule-cell-subject">{cell.subject}</div>
