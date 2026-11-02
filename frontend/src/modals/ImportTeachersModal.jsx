@@ -17,6 +17,7 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
   const [rows, setRows] = useState([])
   const [fileName, setFileName] = useState('')
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
   const [results, setResults] = useState(null)   // { created, failed: [{row, reason}] }
   const [error, setError] = useState('')
 
@@ -51,6 +52,7 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
   const handleImport = async () => {
     if (rows.length === 0) return
     setImporting(true)
+    setImportProgress(0)
     setError('')
 
     const resolvedSchoolId = localStorage.getItem('school_id')
@@ -124,6 +126,7 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
           : rowError.message
         failed.push({ row: rowLabel, reason: msg })
       }
+      setImportProgress(Math.round(((i + 1) / rows.length) * 100))
     }
 
     setResults({ created, failed })
@@ -160,6 +163,23 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
               {rows.length > 0 && (
                 <div className="sy-modal-preview">
                   {fileName}: {rows.length} row{rows.length === 1 ? '' : 's'} detected
+                </div>
+              )}
+              {importing && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ marginBottom: '0.4rem', fontSize: '13px' }} aria-live="polite">
+                    {importProgress}% Complete
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="Teacher import progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={importProgress}
+                    style={{ height: '8px', overflow: 'hidden', borderRadius: '4px', background: '#e5e7eb' }}
+                  >
+                    <div style={{ width: `${importProgress}%`, height: '100%', background: 'var(--navy)', transition: 'width 0.2s ease' }} />
+                  </div>
                 </div>
               )}
             </>

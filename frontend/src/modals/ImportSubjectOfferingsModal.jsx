@@ -32,6 +32,7 @@ const ImportSubjectOfferingsModal = ({ subjects = [], gradeLevels = [], strands 
   const [fileName, setFileName] = useState('')
   const [rows, setRows] = useState([])
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
 
@@ -106,6 +107,7 @@ const ImportSubjectOfferingsModal = ({ subjects = [], gradeLevels = [], strands 
     if (rows.length === 0) return
 
     setImporting(true)
+    setImportProgress(0)
     setError('')
 
     const created = []
@@ -124,6 +126,7 @@ const ImportSubjectOfferingsModal = ({ subjects = [], gradeLevels = [], strands 
       } catch (rowError) {
         failed.push({ label, reason: rowError?.response ? getErrorMessage(rowError) : rowError.message })
       }
+      setImportProgress(Math.round(((i + 1) / rows.length) * 100))
     }
 
     setResults({ created, failed })
@@ -164,6 +167,24 @@ const ImportSubjectOfferingsModal = ({ subjects = [], gradeLevels = [], strands 
           {fileName && rows.length > 0 && !results && (
             <div className="import-preview">
               {fileName}: {rows.length} row{rows.length === 1 ? '' : 's'} found. Click Import to add them.
+            </div>
+          )}
+
+          {importing && (
+            <div style={{ marginTop: '1rem' }}>
+              <div style={{ marginBottom: '0.4rem', fontSize: '13px' }} aria-live="polite">
+                {importProgress}% Complete
+              </div>
+              <div
+                role="progressbar"
+                aria-label="Subject offering import progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={importProgress}
+                style={{ height: '8px', overflow: 'hidden', borderRadius: '4px', background: '#e5e7eb' }}
+              >
+                <div style={{ width: `${importProgress}%`, height: '100%', background: 'var(--navy)', transition: 'width 0.2s ease' }} />
+              </div>
             </div>
           )}
 
