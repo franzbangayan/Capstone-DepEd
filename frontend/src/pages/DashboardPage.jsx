@@ -17,6 +17,7 @@ const DashboardPage = () => {
   const [teacherCount, setTeacherCount] = useState()
   const [sectionCount, setSectionCount] = useState()
   const [workload, setWorkload] = useState([])          // [{ name, assigned, max }]
+  const [showAllWorkload, setShowAllWorkload] = useState(false)
   const [unassignedCount, setUnassignedCount] = useState(null)
   const [statusCounts, setStatusCounts] = useState(null)   // { full, partial, none } sections
   const { refresh, schoolYear } = useSchool();
@@ -195,7 +196,7 @@ const DashboardPage = () => {
             </div>
           ) : (
             <div className="workload-bars">
-              {workload.map((t, i) => {
+              {workload.slice(0, showAllWorkload ? workload.length : 10).map((t, i) => {
                 const assignedPct = Math.min(100, (t.assigned / maxScale) * 100)
                 const maxPct = Math.min(100, (t.max / maxScale) * 100)
                 const overLimit = t.assigned > t.max
@@ -213,6 +214,24 @@ const DashboardPage = () => {
                   </div>
                 )
               })}
+              {workload.length > 10 && !showAllWorkload && (
+                <button
+                  type="button"
+                  className="workload-see-more"
+                  onClick={() => setShowAllWorkload(true)}
+                >
+                  See more...
+                </button>
+              )}
+              {workload.length > 10 && showAllWorkload && (
+                <button
+                  type="button"
+                  className="workload-see-more"
+                  onClick={() => setShowAllWorkload(false)}
+                >
+                  See less
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -235,7 +254,7 @@ const DashboardPage = () => {
             </button>
           </div>
 
-          <div className="card card-body">
+          {/* <div className="card card-body">
             <div className="section-title">Assignment Status</div>
             <div className="section-sub">Sections by subject coverage</div>
             <div className="status-list">
@@ -261,15 +280,14 @@ const DashboardPage = () => {
                 <span className="status-count">{statusCounts ? statusCounts.none : "--"}</span>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
 
-      {/* Activity feed */}
-      <div className="card card-body">
+      {/* <div className="card card-body">
         <div className="section-title">Recent Activity</div>
         <div className="empty-state">No recent activity.</div>
-      </div>
+      </div> */}
 
     </div>
   )
