@@ -32,6 +32,57 @@
 .proceed-btn:disabled { background: #6b9ac4; cursor: not-allowed; }
 .proceed-btn svg { width: 16px; height: 16px; }
 
+.generation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.55);
+}
+.generation-modal {
+  width: min(420px, 92vw);
+  padding: 28px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+.generation-modal h2 { margin: 14px 0 6px; font-size: 1.1rem; color: var(--text); }
+.generation-modal p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.generation-percent { margin-top: 12px; color: var(--navy); font-size: 13px; font-weight: 600; }
+.generation-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto;
+  border: 3px solid #dbe4f0;
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: generation-spin 0.8s linear infinite;
+}
+.generation-progress-track {
+  height: 8px;
+  margin-top: 20px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #e5e7eb;
+}
+.generation-progress-indicator {
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--navy);
+  animation: generation-progress 1.3s ease-in-out infinite;
+}
+.generation-progress-indicator.determinate { animation: none; transition: width 0.2s ease; }
+@keyframes generation-spin { to { transform: rotate(360deg); } }
+@keyframes generation-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
 .readonly-badge { display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; font-weight: 500; color: #475569; }
 .readonly-badge svg { width: 13px; height: 13px; }
 .preview-total-label { font-size: 12px; font-weight: 600; color: var(--text-2); }

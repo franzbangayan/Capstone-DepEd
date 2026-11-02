@@ -1,6 +1,13 @@
 from collections import defaultdict
+import json
+import logging
+from queue import Empty, Queue
+from threading import Thread
 
 from django.contrib.auth import authenticate
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import close_old_connections
+from django.http import StreamingHttpResponse
 from rest_framework import generics, viewsets, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
@@ -26,6 +33,8 @@ from .algorithm import (
     get_manual_assignment_data, manual_assign, manual_unassign,
     ManualAssignmentError,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CreateUserView(generics.CreateAPIView):
@@ -284,6 +293,88 @@ class GenerateLoadView(APIView):
             )
  
         return Response(results, status=status.HTTP_200_OK)
+
+
+class GenerateLoadProgressView(APIView):
+    """
+    Stream progress events while running the existing allocation algorithm.
+    """
+
+    def post(self, request):
+        algorithm = request.data.get('algorithm', 'greedy')
+        school_id = request.user.school_id_id
+        generated_by = request.user
+        generation_scope = {
+            'school_year': request.data.get('school_year'),
+            'education_level': request.data.get('education_level'),
+            'grade_level': request.data.get('grade_level'),
+            'strand': request.data.get('strand'),
+        }
+        generation_queue = Queue()
+
+        def run_generation():
+            try:
+                close_old_connections()
+                allocation = (
+                    run_backtracking_allocation
+                    if algorithm == 'backtracking'
+                    else run_greedy_allocation
+                )
+                results = allocation(
+                    school_id,
+                    **generation_scope,
+                    generated_by=generated_by,
+                    progress_callback=lambda progress: generation_queue.put({
+                        'type': 'progress',
+                        **progress,
+                    }),
+                )
+                generation_queue.put({'type': 'complete', 'results': results})
+            except Exception as error:
+                logger.exception('Teaching load generation failed.')
+                generation_queue.put({
+                    'type': 'error',
+                    'message': str(error) or 'Failed to generate teaching load.',
+                })
+            finally:
+                try:
+                    close_old_connections()
+                except Exception:
+                    logger.exception('Unable to close generation worker database connections.')
+                finally:
+                    generation_queue.put(None)
+
+        def stream_events():
+            yield json.dumps({
+                'type': 'progress',
+                'phase': 'preparing',
+                'current': None,
+                'total': None,
+            }, cls=DjangoJSONEncoder) + '\n'
+
+            worker = Thread(target=run_generation, name='teaching-load-generation', daemon=True)
+            worker.start()
+
+            while True:
+                try:
+                    event = generation_queue.get(timeout=15)
+                except Empty:
+                    yield json.dumps({'type': 'heartbeat'}, cls=DjangoJSONEncoder) + '\n'
+                    continue
+
+                if event is None:
+                    break
+
+                yield json.dumps(event, cls=DjangoJSONEncoder) + '\n'
+
+        response = StreamingHttpResponse(
+            stream_events(),
+            content_type='application/x-ndjson',
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
 
 class ClearGenerationHistoryView(APIView):
     """

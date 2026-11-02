@@ -1,6 +1,7 @@
 import '../styles/SchedulingPage.css'
 import { useState, useEffect } from 'react'
 import api from '../api'
+import { ACCESS_TOKEN } from '../constants'
 import { confirmDialog } from '../components/ConfirmDialog'
 import { IconZap, IconChevronDown, IconCheck, IconAlert, IconLayers } from '../components/Icons'
 import ManualAssignmentModal from '../modals/ManualAssignmentModal'
@@ -69,6 +70,7 @@ const SchedulingPage = () => {
   const [strand,     setStrand]     = useState('N/A')
 
   const [generating, setGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(null)
   const [clearing, setClearing]     = useState(false)
   const [error, setError]           = useState(null)
   const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
@@ -109,26 +111,75 @@ const SchedulingPage = () => {
 
   const handleGenerate = async () => {
     setGenerating(true)
+    setGenerationProgress({ phase: 'preparing' })
     setError(null)
     setResults(null)
     try {
       if (!selectedSchoolYear) {
         setError('Select a school year first.')
-        setGenerating(false)
         return
       }
 
-      const res = await api.post('/api/generate-load/', {
+      const token = localStorage.getItem(ACCESS_TOKEN)
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      const response = await fetch(api.getUri({ url: '/api/generate-load-progress/' }), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
         algorithm: algorithm,
         school_year: selectedSchoolYear.year_start,
         education_level: eduLevel,
         grade_level: gradeLevel,
         strand: strand,
+        }),
       })
-      setResults(res.data)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.detail || 'Failed to generate teaching load. Check the server logs.')
+      }
+
+      if (!response.body) {
+        throw new Error('The server did not provide a generation progress stream.')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let pending = ''
+      let receivedResults = false
+
+      const handleEvent = (line) => {
+        if (!line.trim()) return
+
+        const event = JSON.parse(line)
+        if (event.type === 'progress') {
+          setGenerationProgress(event)
+        } else if (event.type === 'complete') {
+          setResults(event.results)
+          receivedResults = true
+        } else if (event.type === 'error') {
+          throw new Error(event.message)
+        }
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        pending += decoder.decode(value || new Uint8Array(), { stream: !done })
+        const lines = pending.split('\n')
+        pending = lines.pop()
+        lines.forEach(handleEvent)
+        if (done) break
+      }
+
+      if (pending.trim()) handleEvent(pending)
+      if (!receivedResults) {
+        throw new Error('Generation ended before the schedule was returned.')
+      }
     } catch (err) {
       console.error(err)
-      setError(err?.response?.data?.detail || 'Failed to generate teaching load. Check the server logs.')
+      setError(err?.message || 'Failed to generate teaching load. Check the server logs.')
     } finally {
       setGenerating(false)
     }
@@ -169,9 +220,64 @@ const SchedulingPage = () => {
   const assigned = results?.assigned || []
   const skipped = results?.skipped || []
   const scheduleRows = flattenSchedule(assigned)
+  const generationProgressPercent = generationProgress?.total > 0
+    ? Math.min(100, Math.round((generationProgress.current / generationProgress.total) * 100))
+    : null
+  const generationDescription = generationProgress?.phase === 'allocating'
+    ? `Assigning subjects: ${generationProgress.current} of ${generationProgress.total} tasks complete.`
+    : generationProgress?.phase === 'searching'
+      ? `${generationProgress.current.toLocaleString()} of ${generationProgress.total.toLocaleString()} candidates explored (${generationProgressPercent ?? 0}% of the search limit).`
+      : generationProgress?.phase === 'finalizing'
+        ? 'Finalizing the schedule before saving…'
+      : generationProgress?.phase === 'saving'
+        ? `Writing schedule rows: ${generationProgress.current} of ${generationProgress.total}.`
+        : 'Preparing assignments…'
+  const generationProgressLabel = generationProgress?.phase === 'searching'
+    ? `${generationProgressPercent}% of search limit explored`
+    : generationProgress?.phase === 'saving'
+      ? `${generationProgressPercent}% of schedule rows written`
+      : `${generationProgressPercent}% of assignment tasks complete`
 
   return (
     <div className="screen">
+      {generating && (
+        <div className="generation-overlay">
+          <div
+            className="generation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="generation-modal-title"
+            aria-describedby="generation-modal-description"
+            aria-busy="true"
+          >
+            <div className="generation-spinner" aria-hidden="true" />
+            <h2 id="generation-modal-title">Generating Teaching Load</h2>
+            <p id="generation-modal-description" role="status" aria-live="polite">
+              {generationDescription}
+            </p>
+            {generationProgressPercent !== null && (
+              <div className="generation-percent">{generationProgressLabel}</div>
+            )}
+            <div
+              className="generation-progress-track"
+              role="progressbar"
+              aria-label={generationProgress?.phase === 'searching'
+                ? 'Backtracking search limit progress'
+                : generationProgress?.phase === 'saving'
+                  ? 'Schedule row-writing progress'
+                  : 'Assignment progress'}
+              aria-valuemin={generationProgressPercent === null ? undefined : 0}
+              aria-valuemax={generationProgressPercent === null ? undefined : 100}
+              aria-valuenow={generationProgressPercent ?? undefined}
+            >
+              <div
+                className={generationProgressPercent === null ? 'generation-progress-indicator' : 'generation-progress-indicator determinate'}
+                style={generationProgressPercent === null ? undefined : { width: `${generationProgressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       <div className="sched-layout">
 
         {/* Left: Parameters */}

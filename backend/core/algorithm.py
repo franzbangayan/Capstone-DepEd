@@ -231,6 +231,15 @@ def _build_tasks(
     return tasks, already_assigned_count
 
 
+def _report_progress(progress_callback, phase, current=None, total=None):
+    if progress_callback is not None:
+        progress_callback({
+            "phase": phase,
+            "current": current,
+            "total": total,
+        })
+
+
 def _active_specializations(subject, strand=None):
     """
     strand=None means "general qualification, any/no strand" - matches
@@ -710,6 +719,7 @@ def run_greedy_allocation(
     grade_level=None,
     strand=None,
     generated_by=None,
+    progress_callback=None,
 ):
     """
     Greedy teaching-load allocator.
@@ -728,6 +738,7 @@ def run_greedy_allocation(
     an earlier choice.
     """
     start = perf_counter()
+    _report_progress(progress_callback, "preparing")
 
     tasks, already_assigned_count = _build_tasks(
         school_id,
@@ -764,7 +775,10 @@ def run_greedy_allocation(
     assignments = []
     skipped = []
 
-    for section, offering, candidates in task_data:
+    total_tasks = len(task_data)
+    _report_progress(progress_callback, "allocating", 0, total_tasks)
+
+    for completed_tasks, (section, offering, candidates) in enumerate(task_data, start=1):
         if not candidates:
             skipped.append(
                 {
@@ -773,6 +787,7 @@ def run_greedy_allocation(
                     "reason": _candidate_reason([], []),
                 }
             )
+            _report_progress(progress_callback, "allocating", completed_tasks, total_tasks)
             continue
 
         needed_hours = float(offering.hours_per_week)
@@ -799,6 +814,7 @@ def run_greedy_allocation(
                     "reason": _candidate_reason(candidates, []),
                 }
             )
+            _report_progress(progress_callback, "allocating", completed_tasks, total_tasks)
             continue
 
         # Least-loaded first promotes a fairer distribution of teaching
@@ -841,6 +857,7 @@ def run_greedy_allocation(
                     ),
                 }
             )
+            _report_progress(progress_callback, "allocating", completed_tasks, total_tasks)
             continue
 
         teacher_id = selected.teacher_id
@@ -875,11 +892,21 @@ def run_greedy_allocation(
             }
         )
 
+        _report_progress(progress_callback, "allocating", completed_tasks, total_tasks)
+
+    if total_tasks == 0:
+        _report_progress(progress_callback, "allocating", 0, 0)
+
+    _report_progress(progress_callback, "finalizing")
+
     # The algorithm itself is greedy and runs in memory first. Only after
     # that pass do we write TeachingLoad rows, preventing half-generated
     # schedules if the database write fails.
     _compact_gaps(school_id, assignments, school_year=school_year)
 
+    total_rows = sum(len(assignment["slots"]) for assignment in assignments)
+    _report_progress(progress_callback, "saving", 0, total_rows)
+    written_rows = 0
     with transaction.atomic():
         for assignment in assignments:
             for slot in assignment["slots"]:
@@ -893,6 +920,8 @@ def run_greedy_allocation(
                     room_assigned=slot["room"],
                     is_manual_override=False,
                 )
+                written_rows += 1
+                _report_progress(progress_callback, "saving", written_rows, total_rows)
 
     created = [
         {
@@ -955,6 +984,7 @@ def run_backtracking_allocation(
     grade_level=None,
     strand=None,
     generated_by=None,
+    progress_callback=None,
 ):
     """
     Backtracking allocator (iterative depth-first search, so schedule size
@@ -971,6 +1001,7 @@ def run_backtracking_allocation(
     found (fewest skipped tasks) is returned.
     """
     start = perf_counter()
+    _report_progress(progress_callback, "preparing")
 
     tasks, already_assigned_count = _build_tasks(
         school_id,
@@ -1084,6 +1115,7 @@ def run_backtracking_allocation(
     nodes = 0
     depth = 0
     budget_exhausted = False
+    _report_progress(progress_callback, "searching", 0, MAX_BACKTRACK_NODES)
 
     while depth >= 0:
         if depth == total:
@@ -1153,6 +1185,14 @@ def run_backtracking_allocation(
                 budget_exhausted = True
                 break
 
+            if nodes % 100 == 0 or nodes == MAX_BACKTRACK_NODES:
+                _report_progress(
+                    progress_callback,
+                    "searching",
+                    nodes,
+                    MAX_BACKTRACK_NODES,
+                )
+
             teacher = frame["options"][index]
             limit = teacher.current_load_limit
 
@@ -1204,6 +1244,13 @@ def run_backtracking_allocation(
             frames[depth] = None
             depth -= 1
 
+    _report_progress(
+        progress_callback,
+        "searching",
+        min(nodes, MAX_BACKTRACK_NODES),
+        MAX_BACKTRACK_NODES,
+    )
+
     # If the budget ran out before any complete schedule was found, keep
     # the choices made so far and mark the remaining tasks as skipped.
     if best_path is None:
@@ -1231,8 +1278,13 @@ def run_backtracking_allocation(
             }
         )
 
+    _report_progress(progress_callback, "finalizing")
+
     _compact_gaps(school_id, assignments, school_year=school_year)
 
+    total_rows = sum(len(assignment["slots"]) for assignment in assignments)
+    _report_progress(progress_callback, "saving", 0, total_rows)
+    written_rows = 0
     with transaction.atomic():
         for assignment in assignments:
             for slot in assignment["slots"]:
@@ -1246,6 +1298,8 @@ def run_backtracking_allocation(
                     room_assigned=slot["room"],
                     is_manual_override=False,
                 )
+                written_rows += 1
+                _report_progress(progress_callback, "saving", written_rows, total_rows)
 
     created = [
         {
