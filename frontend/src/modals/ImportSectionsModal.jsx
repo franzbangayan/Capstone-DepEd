@@ -1,5 +1,5 @@
 import '../styles/ImportSectionsModal.css'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { IconX } from '../components/Icons'
 import api from '../api'
@@ -37,6 +37,14 @@ const ImportSectionsModal = ({ gradeLevels = [], strands = [], teachers = [], sc
   const [importProgress, setImportProgress] = useState(0)
   const [results, setResults] = useState(null)
   const [error, setError] = useState('')
+  const [successToast, setSuccessToast] = useState('')
+
+  useEffect(() => {
+    if (!successToast) return undefined
+
+    const timeout = setTimeout(() => setSuccessToast(''), 4000)
+    return () => clearTimeout(timeout)
+  }, [successToast])
 
   const gradeIdByName = Object.fromEntries(
     gradeLevels.map((g) => [g.grade_name.toLowerCase(), g.grade_level_id])
@@ -147,6 +155,7 @@ const ImportSectionsModal = ({ gradeLevels = [], strands = [], teachers = [], sc
     setImporting(false)
 
     if (created.length > 0) {
+      setSuccessToast(`Successfully imported ${created.length} section${created.length === 1 ? '' : 's'}.`)
       onSaved?.()
     }
   }
@@ -154,6 +163,28 @@ const ImportSectionsModal = ({ gradeLevels = [], strands = [], teachers = [], sc
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog-panel" onClick={(event) => event.stopPropagation()}>
+        {successToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              zIndex: 1100,
+              padding: '12px 16px',
+              border: '1px solid #86efac',
+              borderRadius: '8px',
+              background: '#f0fdf4',
+              color: '#166534',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              fontSize: '14px',
+              fontWeight: 600,
+            }}
+          >
+            {successToast}
+          </div>
+        )}
         <div className="modal-header">
           <div className="modal-header-text">
             <h2>Import Sections</h2>

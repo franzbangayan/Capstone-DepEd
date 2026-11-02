@@ -1,5 +1,5 @@
 import '../styles/AddSubjectModal.css'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { IconX } from '../components/Icons'
 import api from '../api'
@@ -20,6 +20,14 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
   const [importProgress, setImportProgress] = useState(0)
   const [results, setResults] = useState(null)   // { created, failed: [{row, reason}] }
   const [error, setError] = useState('')
+  const [successToast, setSuccessToast] = useState('')
+
+  useEffect(() => {
+    if (!successToast) return undefined
+
+    const timeout = setTimeout(() => setSuccessToast(''), 4000)
+    return () => clearTimeout(timeout)
+  }, [successToast])
 
   const resolveStatusId = (name) => employmentStatuses.find(
     (s) => s.status_name?.toLowerCase() === String(name).trim().toLowerCase()
@@ -131,12 +139,37 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
 
     setResults({ created, failed })
     setImporting(false)
-    if (created.length > 0) onSaved?.()
+    if (created.length > 0) {
+      setSuccessToast(`Successfully imported ${created.length} teacher${created.length === 1 ? '' : 's'}.`)
+      onSaved?.()
+    }
   }
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog-panel" onClick={(e) => { e.stopPropagation() }}>
+        {successToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              zIndex: 1100,
+              padding: '12px 16px',
+              border: '1px solid #86efac',
+              borderRadius: '8px',
+              background: '#f0fdf4',
+              color: '#166534',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              fontSize: '14px',
+              fontWeight: 600,
+            }}
+          >
+            {successToast}
+          </div>
+        )}
 
         <div className="modal-header">
           <div className="modal-header-text">
