@@ -1,5 +1,5 @@
 import '../styles/AddSubjectModal.css'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import * as XLSX from 'xlsx'
 import { IconX } from '../components/Icons'
 import api from '../api'
@@ -17,8 +17,17 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
   const [rows, setRows] = useState([])
   const [fileName, setFileName] = useState('')
   const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
   const [results, setResults] = useState(null)   // { created, failed: [{row, reason}] }
   const [error, setError] = useState('')
+  const [successToast, setSuccessToast] = useState('')
+
+  useEffect(() => {
+    if (!successToast) return undefined
+
+    const timeout = setTimeout(() => setSuccessToast(''), 4000)
+    return () => clearTimeout(timeout)
+  }, [successToast])
 
   const resolveStatusId = (name) => employmentStatuses.find(
     (s) => s.status_name?.toLowerCase() === String(name).trim().toLowerCase()
@@ -51,6 +60,7 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
   const handleImport = async () => {
     if (rows.length === 0) return
     setImporting(true)
+    setImportProgress(0)
     setError('')
 
     const resolvedSchoolId = localStorage.getItem('school_id')
@@ -124,16 +134,42 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
           : rowError.message
         failed.push({ row: rowLabel, reason: msg })
       }
+      setImportProgress(Math.round(((i + 1) / rows.length) * 100))
     }
 
     setResults({ created, failed })
     setImporting(false)
-    if (created.length > 0) onSaved?.()
+    if (created.length > 0) {
+      setSuccessToast(`Successfully imported ${created.length} teacher${created.length === 1 ? '' : 's'}.`)
+      onSaved?.()
+    }
   }
 
   return (
     <div className="dialog-overlay" onClick={onClose}>
       <div className="dialog-panel" onClick={(e) => { e.stopPropagation() }}>
+        {successToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              top: '20px',
+              right: '20px',
+              zIndex: 1100,
+              padding: '12px 16px',
+              border: '1px solid #86efac',
+              borderRadius: '8px',
+              background: '#f0fdf4',
+              color: '#166534',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.15)',
+              fontSize: '14px',
+              fontWeight: 600,
+            }}
+          >
+            {successToast}
+          </div>
+        )}
 
         <div className="modal-header">
           <div className="modal-header-text">
@@ -160,6 +196,23 @@ const ImportTeachersModal = ({ subjects = [], employmentStatuses = [], onClose, 
               {rows.length > 0 && (
                 <div className="sy-modal-preview">
                   {fileName}: {rows.length} row{rows.length === 1 ? '' : 's'} detected
+                </div>
+              )}
+              {importing && (
+                <div style={{ marginTop: '1rem' }}>
+                  <div style={{ marginBottom: '0.4rem', fontSize: '13px' }} aria-live="polite">
+                    {importProgress}% Complete
+                  </div>
+                  <div
+                    role="progressbar"
+                    aria-label="Teacher import progress"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={importProgress}
+                    style={{ height: '8px', overflow: 'hidden', borderRadius: '4px', background: '#e5e7eb' }}
+                  >
+                    <div style={{ width: `${importProgress}%`, height: '100%', background: 'var(--navy)', transition: 'width 0.2s ease' }} />
+                  </div>
                 </div>
               )}
             </>

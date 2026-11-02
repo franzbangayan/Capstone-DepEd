@@ -1,3 +1,6 @@
+import json
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
@@ -43,6 +46,65 @@ class AuthAPITests(TestCase):
     def test_protected_routes_require_authentication(self):
         response = self.client.get('/api/teachers/')
         self.assertEqual(response.status_code, 401)
+
+    def test_generation_progress_route_requires_authentication(self):
+        response = self.client.post('/api/generate-load-progress/', {}, format='json')
+        self.assertEqual(response.status_code, 401)
+
+
+class GenerateLoadProgressTests(TestCase):
+    def setUp(self):
+        school = School.objects.create(
+            deped_school_id='100003',
+            school_name='Progress Test School',
+            school_level='Secondary',
+        )
+        self.user = User.objects.create_user(
+            username='progress-test',
+            password='StrongPass123',
+            school_id=school,
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    @patch('core.views.run_greedy_allocation')
+    def test_progress_route_streams_algorithm_events_and_result(self, run_allocation):
+        results = {
+            'assigned_count': 1,
+            'skipped_count': 0,
+            'already_assigned_count': 0,
+            'assigned': [],
+            'skipped': [],
+        }
+
+        def generate_with_progress(*args, progress_callback, **kwargs):
+            progress_callback({
+                'phase': 'allocating',
+                'current': 1,
+                'total': 2,
+            })
+            return results
+
+        run_allocation.side_effect = generate_with_progress
+
+        response = self.client.post(
+            '/api/generate-load-progress/',
+            {'algorithm': 'greedy', 'school_year': 2026},
+            format='json',
+        )
+        events = [
+            json.loads(chunk)
+            for chunk in response.streaming_content
+        ]
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/x-ndjson')
+        self.assertIn(
+            {'type': 'progress', 'phase': 'allocating', 'current': 1, 'total': 2},
+            events,
+        )
+        self.assertEqual(events[-1], {'type': 'complete', 'results': results})
+        run_allocation.assert_called_once()
 
 
 class SchoolScopedCurriculumTests(TestCase):
