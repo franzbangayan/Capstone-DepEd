@@ -120,7 +120,7 @@ const ManualAssignmentModal = ({ scope, onClose, onChanged }) => {
         <div className="modal-header">
           <div className="modal-header-text">
             <h2>Manual Assignment</h2>
-            <p>Assign, change or remove teachers. Manual rows are kept when you clear generated loads.</p>
+            <p>Assign, change or remove teachers. Manual assignments are preserved separately from generated loads.</p>
           </div>
           <button type="button" className="modal-close" onClick={onClose}><IconX /></button>
         </div>
