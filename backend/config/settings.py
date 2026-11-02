@@ -36,7 +36,7 @@ SIMPLE_JWT = {
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
 
-
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
 # Application definition
 
 INSTALLED_APPS = [
@@ -50,6 +50,9 @@ INSTALLED_APPS = [
     'corsheaders',
     'core',
 ]
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+AUTH_USER_MODEL = 'core.User'
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
@@ -115,6 +118,12 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        "OPTIONS": {
+            "min_length": 8,
+        },
+    },
+    {
+        "NAME": "core.validators.StrongPasswordValidator",
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',

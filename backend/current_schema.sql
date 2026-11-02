@@ -43,9 +43,6 @@ CREATE TABLE `TEACHING_LOAD` (`load_id` integer AUTO_INCREMENT NOT NULL PRIMARY 
 --
 ALTER TABLE `STRAND` ADD COLUMN `track_id` integer NOT NULL , ADD CONSTRAINT `STRAND_track_id_204ebb48_fk_TRACK_track_id` FOREIGN KEY (`track_id`) REFERENCES `TRACK`(`track_id`);
 --
--- Create model UserAccount
---
-CREATE TABLE `USER_ACCOUNT` (`user_id` integer AUTO_INCREMENT NOT NULL PRIMARY KEY, `username` varchar(50) NOT NULL UNIQUE, `password_hash` varchar(255) NOT NULL, `school_id` integer NOT NULL);
 --
 -- Create model TeacherSpecialization
 --

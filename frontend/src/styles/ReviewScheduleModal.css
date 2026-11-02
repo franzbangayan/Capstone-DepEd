@@ -1,0 +1,179 @@
+/* ---- Overlay + panel shell ---- */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.review-modal-panel {
+  background: #e5e7eb;
+  width: min(900px, 94vw);
+  height: min(880px, 92vh);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- Toolbar ---- */
+.review-toolbar {
+  background: #ffffff;
+  border-bottom: 1px solid #d1d5db;
+  padding: 16px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.review-toolbar h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.review-toolbar p {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.review-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---- Gray scroll backdrop, like a document viewer ---- */
+.review-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* ---- The "paper" itself ---- */
+.paper-sheet {
+  background: #ffffff;
+  width: 8.5in;
+  max-width: 92%;
+  min-height: 11in;
+  padding: 0.85in 0.75in;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+  font-family: 'Georgia', 'Times New Roman', serif;
+  color: #1f2933;
+}
+
+.paper-letterhead {
+  text-align: center;
+  border-bottom: 2px solid #1f2933;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.paper-letterhead h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+}
+
+.paper-letterhead p {
+  margin: 6px 0 0;
+  font-size: 0.85rem;
+  color: #52606d;
+}
+
+.paper-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.paper-table th {
+  text-align: left;
+  border-bottom: 2px solid #1f2933;
+  padding: 8px 6px;
+  font-weight: 600;
+}
+
+.paper-table td {
+  border-bottom: 1px solid #d1d5db;
+  padding: 8px 6px;
+}
+
+.paper-table .right {
+  text-align: right;
+}
+
+.paper-empty {
+  text-align: center;
+  color: #9aa5b1;
+  font-style: italic;
+  padding: 24px 0;
+}
+
+.paper-unresolved {
+  margin-top: 32px;
+}
+
+.paper-unresolved h2 {
+  font-size: 1rem;
+  border-bottom: 1px solid #1f2933;
+  padding-bottom: 6px;
+  margin-bottom: 10px;
+}
+
+.paper-unresolved ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.88rem;
+  color: #52606d;
+}
+
+.paper-unresolved li {
+  margin-bottom: 4px;
+}
+
+.paper-footer {
+  margin-top: 48px;
+  padding-top: 12px;
+  border-top: 1px solid #d1d5db;
+  font-size: 0.75rem;
+  color: #9aa5b1;
+  text-align: center;
+}
+
+/* ---- Print: only the paper sheet, full page, no chrome ---- */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-schedule,
+  #printable-schedule * {
+    visibility: visible;
+  }
+  #printable-schedule {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none;
+    margin: 0;
+    padding: 0.5in;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .dialog-overlay,
+  .review-modal-panel,
+  .review-scroll-area {
+    position: static;
+    background: none;
+    height: auto;
+    overflow: visible;
+  }
+}

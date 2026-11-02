@@ -1,0 +1,296 @@
+import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import api from "../api"
+import { IconUsers, IconSchool, IconAlert, IconCalendar, IconZap } from '../components/Icons'
+import '../styles/DashboardPage.css'
+import '../styles/App.css'
+import { useSchool } from "../contexts/SchoolContext.jsx"
+
+const ACTIVE_DATE = '9999-12-31'
+
+const listData = (response) => (
+  Array.isArray(response.data) ? response.data : response.data.results || []
+)
+
+const DashboardPage = () => {
+  const navigate = useNavigate()
+  const [teacherCount, setTeacherCount] = useState()
+  const [sectionCount, setSectionCount] = useState()
+  const [workload, setWorkload] = useState([])          // [{ name, assigned, max }]
+  const [showAllWorkload, setShowAllWorkload] = useState(false)
+  const [unassignedCount, setUnassignedCount] = useState(null)
+  const [statusCounts, setStatusCounts] = useState(null)   // { full, partial, none } sections
+  const { refresh, schoolYear } = useSchool();
+
+  useEffect(() => {
+
+    const fetchData = async () => {
+      try {
+        const [teachersRes, sectionsRes, loadLimitsRes, teachingLoadsRes, offeringsRes] = await Promise.all([
+          api.get("/api/teachers/"),
+          api.get("/api/sections/"),
+          api.get("/api/teacher-load-limits/"),
+          api.get("/api/teaching-loads/"),
+          api.get("/api/subject-offerings/"),
+        ])
+
+        const teachers = listData(teachersRes)
+        const sections = listData(sectionsRes)
+        const loadLimits = listData(loadLimitsRes)
+        const teachingLoads = listData(teachingLoadsRes)
+        const offerings = listData(offeringsRes)
+
+        setTeacherCount(teachers.length)
+        setSectionCount(sections.length)
+
+        // TeachingLoad only stores an offering id, not its hours - need
+        // this map to know how many hours each assigned row is worth.
+        const hoursByOfferingId = Object.fromEntries(
+          offerings.map((o) => [o.offering_id, o.hours_per_week])
+        )
+
+        const computed = teachers
+          .map((teacher) => {
+            const activeLimit = loadLimits.find(
+              (l) => Number(l.teacher) === Number(teacher.teacher_id) && l.date_ended === ACTIVE_DATE
+            )
+            const maxHours = activeLimit?.max_load_hours ?? 0
+
+            // TEACHING_LOAD stores one row per scheduled period. Count each
+            // teacher + section + offering assignment only once for weekly workload.
+            const countedAssignments = new Set()
+            const assignedHours = teachingLoads
+              .filter((load) => Number(load.teacher) === Number(teacher.teacher_id))
+              .reduce((sum, load) => {
+                const key = `${load.section}-${load.offering}`
+                if (countedAssignments.has(key)) return sum
+                countedAssignments.add(key)
+                return sum + (hoursByOfferingId[load.offering] || 0)
+              }, 0)
+
+            return {
+              name: `${teacher.last_name}, ${teacher.first_name}`,
+              assigned: assignedHours,
+              max: maxHours,
+            }
+          })
+          // Teachers with no active load limit on record can't be
+          // meaningfully plotted against a max - skip them here rather
+          // than show a bar with no scale.
+          .filter((t) => t.max > 0)
+
+        setWorkload(computed)
+
+        // Live assignment status, computed from the current data so it
+        // stays correct after manual edits (not just the last run).
+        // Per section: compare its applicable offerings (same grade level;
+        // same strand for SHS, no strand otherwise) against assigned pairs.
+        const sectionIds = new Set(sections.map((sec) => Number(sec.section_id)))
+        const assignedKeys = new Set(
+          teachingLoads
+            .filter((load) => sectionIds.has(Number(load.section)))
+            .map((load) => `${load.section}-${load.offering}`)
+        )
+
+        let full = 0
+        let partial = 0
+        let none = 0
+        let unassignedPairs = 0
+
+        sections.forEach((sec) => {
+          const applicable = offerings.filter((o) =>
+            Number(o.grade_level) === Number(sec.grade_level) &&
+            (sec.strand ? Number(o.strand) === Number(sec.strand) : o.strand == null)
+          )
+          if (applicable.length === 0) return
+
+          const done = applicable.filter((o) =>
+            assignedKeys.has(`${sec.section_id}-${o.offering_id}`)
+          ).length
+
+          unassignedPairs += applicable.length - done
+          if (done === applicable.length) full += 1
+          else if (done === 0) none += 1
+          else partial += 1
+        })
+
+        setStatusCounts({ full, partial, none })
+        setUnassignedCount(unassignedPairs)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
+    refresh();
+    fetchData()
+
+  }, [])
+
+  const maxScale = Math.max(1, ...workload.map((t) => t.max))
+
+  return (
+    <div className="screen stack">
+
+      {/* Stat cards */}
+      <div className="stat-cards">
+        <div className="stat-card blue">
+          <div className="stat-icon blue">
+            <IconUsers />
+          </div>
+          <div>
+            <div className="stat-value">{teacherCount == null ? "--" : teacherCount}</div>
+            <div className="stat-label">Total Teachers</div>
+          </div>
+        </div>
+
+        <div className="stat-card indigo">
+          <div className="stat-icon indigo">
+            <IconSchool />
+          </div>
+          <div>
+            <div className="stat-value">{sectionCount == null ? "--" : sectionCount}</div>
+            <div className="stat-label">Total Sections</div>
+          </div>
+        </div>
+
+        <div className="stat-card amber">
+          <div className="stat-icon amber">
+            <IconAlert />
+          </div>
+          <div>
+            <div className="stat-value alert">{unassignedCount == null ? "--" : unassignedCount}</div>
+            <div className="stat-label">Unassigned Loads</div>
+          </div>
+        </div>
+
+        <div className="stat-card green">
+          <div className="stat-icon green">
+            <IconCalendar />
+          </div>
+          <div>
+            <div className="stat-value">{schoolYear === null ? "--" : schoolYear}</div>
+            <div className="stat-label">School Year</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Workload chart + actions */}
+      <div className="grid-3-2">
+
+        {/* Chart */}
+        <div className="card chart-card">
+          <div className="row-between">
+            <div>
+              <div className="section-title">Teacher Workload Preview</div>
+              <div className="section-sub">Assigned hours vs. max load</div>
+            </div>
+            <div className="chart-legend">
+              <span className="legend-dot assigned" /> Assigned
+              <span className="legend-dot remaining" /> Remaining
+            </div>
+          </div>
+
+          {workload.length === 0 ? (
+            <div className="chart-empty-state">
+              No workload data available. Generate a teaching load to see results here.
+            </div>
+          ) : (
+            <div className="workload-bars">
+              {workload.slice(0, showAllWorkload ? workload.length : 10).map((t, i) => {
+                const assignedPct = Math.min(100, (t.assigned / maxScale) * 100)
+                const maxPct = Math.min(100, (t.max / maxScale) * 100)
+                const overLimit = t.assigned > t.max
+                return (
+                  <div key={i} className="workload-row">
+                    <div className="workload-name" title={t.name}>{t.name}</div>
+                    <div className="workload-track">
+                      <div className="workload-track-max" style={{ width: `${maxPct}%` }} />
+                      <div
+                        className={overLimit ? "workload-track-assigned over" : "workload-track-assigned"}
+                        style={{ width: `${assignedPct}%` }}
+                      />
+                    </div>
+                    <div className="workload-figure">{t.assigned}/{t.max}h</div>
+                  </div>
+                )
+              })}
+              {workload.length > 10 && !showAllWorkload && (
+                <button
+                  type="button"
+                  className="workload-see-more"
+                  onClick={() => setShowAllWorkload(true)}
+                >
+                  See more...
+                </button>
+              )}
+              {workload.length > 10 && showAllWorkload && (
+                <button
+                  type="button"
+                  className="workload-see-more"
+                  onClick={() => setShowAllWorkload(false)}
+                >
+                  See less
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Side panel */}
+        <div className="stack">
+          <div className="generate-card">
+            <div className="generate-icon-wrap">
+              <IconZap />
+            </div>
+            <div className="generate-title">Generate Teaching Load</div>
+            <div className="generate-desc">
+              Automatically assign teachers to subjects and sections based on DepEd constraints.
+            </div>
+            <button
+              className="generate-btn"
+              onClick={() => { navigate('/scheduling') }} 
+            >
+              Generate Teaching Load
+            </button>
+          </div>
+
+          {/* <div className="card card-body">
+            <div className="section-title">Assignment Status</div>
+            <div className="section-sub">Sections by subject coverage</div>
+            <div className="status-list">
+              <div className="status-row">
+                <div className="status-left">
+                  <div className="status-dot green" />
+                  <span className="status-text">Fully Assigned</span>
+                </div>
+                <span className="status-count">{statusCounts ? statusCounts.full : "--"}</span>
+              </div>
+              <div className="status-row">
+                <div className="status-left">
+                  <div className="status-dot amber" />
+                  <span className="status-text">Partially Assigned</span>
+                </div>
+                <span className="status-count">{statusCounts ? statusCounts.partial : "--"}</span>
+              </div>
+              <div className="status-row">
+                <div className="status-left">
+                  <div className="status-dot red" />
+                  <span className="status-text">Unassigned</span>
+                </div>
+                <span className="status-count">{statusCounts ? statusCounts.none : "--"}</span>
+              </div>
+            </div>
+          </div> */}
+        </div>
+      </div>
+
+      {/* <div className="card card-body">
+        <div className="section-title">Recent Activity</div>
+        <div className="empty-state">No recent activity.</div>
+      </div> */}
+
+    </div>
+  )
+}
+
+export default DashboardPage

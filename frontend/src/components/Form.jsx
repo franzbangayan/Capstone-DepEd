@@ -1,0 +1,215 @@
+import { useEffect, useState } from "react";
+import api from "../api";
+import { useNavigate } from "react-router-dom";
+import { ACCESS_TOKEN, REFRESH_TOKEN } from "../constants";
+import { IconAlert } from "../components/Icons"
+import "../styles/Form.css"
+
+function Form({ route, method }) {
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const navigate = useNavigate();
+
+    const [school, setSchool] = useState("");
+    const [schools, setSchools] = useState([]);
+    const [schoolsLoading, setSchoolsLoading] = useState(true);
+    const [schoolsError, setSchoolsError] = useState("");
+
+    const name = method === "login" ? "Sign In" : "Create Account";
+    const buttonText = method === "login" ? "Log In" : "Register";
+    const loadingText = method === "login" ? "Signing in…" : "Registering…";
+  
+
+
+ useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setSchoolsLoading(true);
+      setSchoolsError("");
+
+      const response = await fetch("http://127.0.0.1:8000/api/schools/");
+
+      const data = await response.json();
+
+      // console.log("Schools API response:", data);
+
+      const schoolList = data;
+
+      setSchools(schoolList);
+    } catch (err) {
+      console.error("Failed to load schools:", err);
+      setSchoolsError("Unable to load schools.");
+      setSchools([]);
+    } finally {
+      setSchoolsLoading(false);
+    }
+  };
+
+  fetchData();
+}, []);
+
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError("");
+
+  try {
+    if (method === "register" && !school) {
+      setError("Please select a school.");
+      setLoading(false);
+      return;
+    }
+
+    // console.log("School_id", school);
+
+    const payload = {
+      username,
+      password,
+      ...(method === 'register' && {
+        school_id: Number(school),
+      }),
+    };
+
+    // console.log("Payload: ", payload);
+
+    const res = await api.post(route, payload);
+    console.log("Response: ", res.data);
+
+    if (method === "login") {
+      localStorage.setItem(ACCESS_TOKEN, res.data.access);
+      localStorage.setItem(REFRESH_TOKEN, res.data.refresh);
+      localStorage.setItem("username", username);
+      localStorage.setItem("school_id", Number(res.data.school_id));
+
+      // This requires the login API to return school_id
+      const loggedInSchoolId =
+        res.data.school_id ||
+        res.data.school?.id ||
+        res.data.user?.school_id ||
+        res.data.user?.school?.id;
+
+      if (loggedInSchoolId) {
+        localStorage.setItem("school_id", String(loggedInSchoolId));
+      }
+
+      navigate("/");
+    } else {
+      navigate("/login");
+    }
+  } catch (error) {
+    // console.error("Error:", error.response?.data.username?.[0]);
+    // console.error("Error during form submission:", error.response?.data.password);
+    setError(
+      method === "login"
+        ? "Invalid username or password."
+        : error.response?.data.username?.[0] || error.response?.data.password?.[0] || "Registration failed. Please try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+    return (
+        <div className="login-bg">
+            <div className="login-card-wrap">
+                <div className="login-card">
+                    <div className="login-stripe" />
+                    <div className="login-body">
+                        <div className="login-logo-wrap">
+                            <img className="login-deped-logo" src="/assets/deped-logo.png" alt="Department of Education logo" />
+                            <div className="login-app-name">Schedura</div>
+                        
+                        </div>
+
+                        <div className="login-heading">
+                            <h2>{name}</h2>
+                            <p>Teacher Loading System</p>
+                        </div>
+
+                        {error !== "" && (
+                            <div className="login-error">
+                                <IconAlert />
+                                <p>{error}</p>
+                            </div>
+                        )}
+                        
+                        
+
+                        <form className="login-form" onSubmit={handleSubmit}>
+                            {method === "register" && (
+                              <div className="field">
+                                <label className="field-label" htmlFor="school">
+                                    School
+                                </label>
+
+                                <div className="select-wrap">
+                                  <select
+                                    id="school"
+                                    value={school}
+                                    onChange={(e) => {
+                                        const selectedSchoolId = e.target.value;
+
+                                        setSchool(selectedSchoolId);
+                                        localStorage.setItem("school_id", selectedSchoolId);
+                                    }}
+                                    required
+                                    >
+                                    <option value="">— Select your school —</option>
+
+                                    {schools.map((school) => (
+                                        <option key={`school-${school.school_id}`} value={school.school_id}>
+                                            {school.school_name}
+                                        </option>
+                                    ))}
+                                    </select>
+
+                                        {schoolsError && (
+                                        <p className="field-error" role="alert">
+                                            {schoolsError}
+                                        </p>
+                                        )}
+
+                                </div>
+                              </div>
+                            )}
+                            
+
+                            <div className="field">
+                                <label className="field-label">Username</label>
+                                <input
+                                    className="input"
+                                    type="text"
+                                    placeholder="Enter username"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="field">
+                                <label className="field-label">Password</label>
+                                <input
+                                    className="input"
+                                    type="password"
+                                    placeholder="Enter password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <button className="login-submit" type="submit" disabled={loading}>
+                                {loading ? loadingText : buttonText}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <p className="login-footer">Authorized Users Only</p>
+            </div>
+        </div>
+    );
+}
+
+export default Form;

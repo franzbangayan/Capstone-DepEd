@@ -1,0 +1,29 @@
+/* Toolbar: search + status filter on the left, Import and Add Teacher pushed to the right.
+   The Import button (.btn-outline inside the toolbar) had no design before, so it is styled here:
+   navy outline with an upload icon drawn in CSS. */
+.toolbar .btn-outline {
+  margin-left: auto;
+  border-color: var(--navy); color: var(--navy); font-weight: 600; background: #fff;
+}
+.toolbar .btn-outline:hover { background: var(--navy-tint); border-color: var(--navy); }
+.toolbar .btn-outline::before {
+  content: ''; width: 14px; height: 14px; flex-shrink: 0; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' y1='3' x2='12' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* Table rows: give the four name columns and the actions a sensible rhythm */
+.data-table td:first-child { font-weight: 500; color: #0f172a; }
+.data-table td .icon-btn + .icon-btn { margin-left: 2px; }
+
+.table-footer {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+.teacher-pagination { align-items: center; display: flex; gap: 10px; }
+
+@media (max-width: 700px) {
+  .table-footer { align-items: flex-start; flex-direction: column; }
+}

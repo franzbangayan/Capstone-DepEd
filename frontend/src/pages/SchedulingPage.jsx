@@ -1,0 +1,567 @@
+import '../styles/SchedulingPage.css'
+import { useState, useEffect } from 'react'
+import api from '../api'
+import { ACCESS_TOKEN } from '../constants'
+import { confirmDialog } from '../components/ConfirmDialog'
+import { IconZap, IconChevronDown, IconCheck, IconAlert, IconLayers } from '../components/Icons'
+import ManualAssignmentModal from '../modals/ManualAssignmentModal'
+
+const GRADE_LEVELS_BY_LEVEL = {
+  All:                  ['All Levels'],
+  Elementary:           ['All Levels', 'Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6'],
+  'Junior High School': ['All Levels', 'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10'],
+  'Senior High School': ['All Levels', 'Grade 11', 'Grade 12'],
+}
+
+const ALL_LABEL = {
+  Elementary: 'Elementary',
+  'Junior High School': 'JHS',
+  'Senior High School': 'SHS',
+}
+
+const DEPED_CONSTRAINTS = [
+  'Max 6 teaching hours per teacher per day (Permanent/Provisional)',
+  'Part-time teachers limited to 3 hours per day',
+  'No teacher assigned to overlapping sections simultaneously',
+  'Teacher specialization must match subject area',
+  'Each section must have a complete subject load',
+  'Advisory classes do not count toward teaching load hours',
+  'SHS Specialized subjects must be taught by qualified strand teachers',
+]
+
+const listData = (response) => (
+  Array.isArray(response.data) ? response.data : response.data.results || []
+)
+
+// Backend groups periods under each assignment (assignment.schedule = [...]).
+// Flatten that into one row per period for the flat table view.
+const formatTime = (t) => {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const period = h >= 12 ? 'PM' : 'AM'
+  const displayHour = h % 12 === 0 ? 12 : h % 12
+  return `${displayHour}:${String(m).padStart(2, '0')} ${period}`
+}
+
+const flattenSchedule = (assigned) => {
+  const rows = []
+  assigned.forEach((a) => {
+    (a.schedule || []).forEach((s) => {
+      rows.push({
+        teacher: a.teacher,
+        section: a.section,
+        subject: a.subject,
+        day: s.day,
+        time: `${formatTime(s.time_start)}–${formatTime(s.time_end)}`,
+        room: s.room,
+      })
+    })
+  })
+  return rows
+}
+
+const SchedulingPage = () => {
+  const [schoolYears,   setSchoolYears]   = useState([])
+  const [schoolYearId,  setSchoolYearId]  = useState('')
+  const [loadingYears,  setLoadingYears]  = useState(true)
+
+  const [eduLevel,   setEduLevel]   = useState('Junior High School')
+  const [gradeLevel, setGradeLevel] = useState('Grade 7')
+  const [strand,     setStrand]     = useState('N/A')
+
+  const [generating, setGenerating] = useState(false)
+  const [generationProgress, setGenerationProgress] = useState(null)
+  const [clearing, setClearing]     = useState(false)
+  const [error, setError]           = useState(null)
+  const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
+  const [algorithm, setAlgorithm] = useState('greedy')
+  const [showManual, setShowManual] = useState(false)
+
+  const isAll = eduLevel === 'All'
+  const isSHS = eduLevel === 'Senior High School'
+
+  useEffect(() => {
+    const loadSchoolYears = async () => {
+      setLoadingYears(true)
+      try {
+        const res = await api.get('/api/school-years/')
+        const years = listData(res)
+        setSchoolYears(years)
+        const active = years.find((y) => y.is_active)
+        setSchoolYearId(String((active || years[0])?.school_year_id || ''))
+      } catch (err) {
+        console.error(err)
+        setError('Unable to load school years.')
+      } finally {
+        setLoadingYears(false)
+      }
+    }
+    loadSchoolYears()
+  }, [])
+
+  const handleEduLevelChange = (level) => {
+    setEduLevel(level)
+    setGradeLevel(GRADE_LEVELS_BY_LEVEL[level][0])
+    setStrand('N/A')
+  }
+
+  const selectedSchoolYear = schoolYears.find(
+    (y) => String(y.school_year_id) === String(schoolYearId)
+  )
+
+  const handleGenerate = async () => {
+    setGenerating(true)
+    setGenerationProgress({ phase: 'preparing' })
+    setError(null)
+    setResults(null)
+    try {
+      if (!selectedSchoolYear) {
+        setError('Select a school year first.')
+        return
+      }
+
+      const token = localStorage.getItem(ACCESS_TOKEN)
+      const headers = { 'Content-Type': 'application/json' }
+      if (token) headers.Authorization = `Bearer ${token}`
+
+      const response = await fetch(api.getUri({ url: '/api/generate-load-progress/' }), {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+        algorithm: algorithm,
+        school_year: selectedSchoolYear.year_start,
+        education_level: eduLevel,
+        grade_level: gradeLevel,
+        strand: strand,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null)
+        throw new Error(errorData?.detail || 'Failed to generate teaching load. Check the server logs.')
+      }
+
+      if (!response.body) {
+        throw new Error('The server did not provide a generation progress stream.')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let pending = ''
+      let receivedResults = false
+
+      const handleEvent = (line) => {
+        if (!line.trim()) return
+
+        const event = JSON.parse(line)
+        if (event.type === 'progress') {
+          setGenerationProgress(event)
+        } else if (event.type === 'complete') {
+          setResults(event.results)
+          receivedResults = true
+        } else if (event.type === 'error') {
+          throw new Error(event.message)
+        }
+      }
+
+      while (true) {
+        const { done, value } = await reader.read()
+        pending += decoder.decode(value || new Uint8Array(), { stream: !done })
+        const lines = pending.split('\n')
+        pending = lines.pop()
+        lines.forEach(handleEvent)
+        if (done) break
+      }
+
+      if (pending.trim()) handleEvent(pending)
+      if (!receivedResults) {
+        throw new Error('Generation ended before the schedule was returned.')
+      }
+    } catch (err) {
+      console.error(err)
+      setError(err?.message || 'Failed to generate teaching load. Check the server logs.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handlePrint = () => {
+    window.print()
+  }
+
+  const handleClear = async () => {
+    if (!selectedSchoolYear) return
+    if (!(await confirmDialog({
+      title: 'Clear generated loads?',
+      message: 'All algorithm-generated teaching loads in this scope will be removed. Manually assigned loads are kept.',
+      confirmLabel: 'Clear loads',
+      danger: true,
+    }))) return
+
+    setClearing(true)
+    setError(null)
+    try {
+      const res = await api.post('/api/clear-generated-loads/', {
+        school_year: selectedSchoolYear.year_start,
+        education_level: eduLevel,
+        grade_level: gradeLevel,
+        strand: strand,
+      })
+      setResults(null)
+      alert(`Cleared ${res.data.deleted_count} generated load${res.data.deleted_count === 1 ? '' : 's'}. You can generate again.`)
+    } catch (err) {
+      console.error(err)
+      setError('Failed to clear generated loads.')
+    } finally {
+      setClearing(false)
+    }
+  }
+
+  const assigned = results?.assigned || []
+  const skipped = results?.skipped || []
+  const scheduleRows = flattenSchedule(assigned)
+  const generationProgressPercent = generationProgress?.total > 0
+    ? Math.min(100, Math.round((generationProgress.current / generationProgress.total) * 100))
+    : null
+  const generationDescription = generationProgress?.phase === 'allocating'
+    ? `Assigning subjects: ${generationProgress.current} of ${generationProgress.total} tasks complete.`
+    : generationProgress?.phase === 'searching'
+      ? `${generationProgress.current.toLocaleString()} of ${generationProgress.total.toLocaleString()} candidates explored (${generationProgressPercent ?? 0}% of the search limit).`
+      : generationProgress?.phase === 'finalizing'
+        ? 'Finalizing the schedule before saving…'
+      : generationProgress?.phase === 'saving'
+        ? `Writing schedule rows: ${generationProgress.current} of ${generationProgress.total}.`
+        : 'Preparing assignments…'
+  const generationProgressLabel = generationProgress?.phase === 'searching'
+    ? `${generationProgressPercent}% of search limit explored`
+    : generationProgress?.phase === 'saving'
+      ? `${generationProgressPercent}% of schedule rows written`
+      : `${generationProgressPercent}% of assignment tasks complete`
+
+  return (
+    <div className="screen">
+      {generating && (
+        <div className="generation-overlay">
+          <div
+            className="generation-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="generation-modal-title"
+            aria-describedby="generation-modal-description"
+            aria-busy="true"
+          >
+            <div className="generation-spinner" aria-hidden="true" />
+            <h2 id="generation-modal-title">Generating Teaching Load</h2>
+            <p id="generation-modal-description" role="status" aria-live="polite">
+              {generationDescription}
+            </p>
+            {generationProgressPercent !== null && (
+              <div className="generation-percent">{generationProgressLabel}</div>
+            )}
+            <div
+              className="generation-progress-track"
+              role="progressbar"
+              aria-label={generationProgress?.phase === 'searching'
+                ? 'Backtracking search limit progress'
+                : generationProgress?.phase === 'saving'
+                  ? 'Schedule row-writing progress'
+                  : 'Assignment progress'}
+              aria-valuemin={generationProgressPercent === null ? undefined : 0}
+              aria-valuemax={generationProgressPercent === null ? undefined : 100}
+              aria-valuenow={generationProgressPercent ?? undefined}
+            >
+              <div
+                className={generationProgressPercent === null ? 'generation-progress-indicator' : 'generation-progress-indicator determinate'}
+                style={generationProgressPercent === null ? undefined : { width: `${generationProgressPercent}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="sched-layout">
+
+        {/* Left: Parameters */}
+        <div className="stack no-print">
+
+          <div className="card card-body">
+            <div className="section-title">Scheduling Parameters</div>
+            <div className="section-sub sched-sub">Configure scope before generating teaching loads.</div>
+
+            <div className="stack">
+
+              <div className="field">
+                <label className="field-label">School Year</label>
+                <div className="select-wrap">
+                  <select
+                    value={schoolYearId}
+                    onChange={(e) => { setSchoolYearId(e.target.value) }}
+                    disabled={loadingYears}
+                  >
+                    {loadingYears && <option>Loading…</option>}
+                    {!loadingYears && schoolYears.length === 0 && (
+                      <option value="">No school years found</option>
+                    )}
+                    {schoolYears.map((sy) => (
+                      <option key={sy.school_year_id} value={sy.school_year_id}>
+                        {sy.year_start}–{sy.year_end}{sy.is_active ? ' (Active)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <IconChevronDown />
+                </div>
+              </div>
+
+              <div className="field">
+                <label className="field-label">Education Level</label>
+                <div className="edu-toggle">
+                  <button
+                    className={eduLevel === 'All' ? 'edu-btn active' : 'edu-btn'}
+                    onClick={() => { handleEduLevelChange('All') }}
+                  >
+                    All
+                  </button>
+                  <button
+                    className={eduLevel === 'Elementary' ? 'edu-btn active' : 'edu-btn'}
+                    onClick={() => { handleEduLevelChange('Elementary') }}
+                  >
+                    Elem.
+                  </button>
+                  <button
+                    className={eduLevel === 'Junior High School' ? 'edu-btn active' : 'edu-btn'}
+                    onClick={() => { handleEduLevelChange('Junior High School') }}
+                  >
+                    JHS
+                  </button>
+                  <button
+                    className={eduLevel === 'Senior High School' ? 'edu-btn active' : 'edu-btn'}
+                    onClick={() => { handleEduLevelChange('Senior High School') }}
+                  >
+                    SHS
+                  </button>
+                </div>
+              </div>
+
+              {isAll === false && (
+                <div className="field">
+                  <label className="field-label">Grade Level</label>
+                  <div className="select-wrap">
+                    <select
+                      value={gradeLevel}
+                      onChange={(e) => { setGradeLevel(e.target.value) }}
+                    >
+                      {GRADE_LEVELS_BY_LEVEL[eduLevel].map((g) => {
+                        const label = g === 'All Levels' ? `All ${ALL_LABEL[eduLevel]}` : g
+                        return <option key={g} value={g}>{label}</option>
+                      })}
+                    </select>
+                    <IconChevronDown />
+                  </div>
+                </div>
+              )}
+
+              {isSHS && (
+                <div className="field">
+                  <label className="field-label">Track / Strand</label>
+                  <div className="select-wrap">
+                    <select
+                      value={strand}
+                      onChange={(e) => { setStrand(e.target.value) }}
+                    >
+                      <option>N/A</option>
+                      <option>STEM</option>
+                      <option>ABM</option>
+                      <option>HUMSS</option>
+                      <option>GAS</option>
+                      <option>TVL</option>
+                      <option>Sports</option>
+                      <option>Arts and Design</option>
+                    </select>
+                    <IconChevronDown />
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+
+
+          <div className="card card-body">
+            <div className="section-title">DepEd Constraint Rules</div>
+            <div className="constraints-list">
+              {DEPED_CONSTRAINTS.map((label, i) => {
+                const isLastRule = i === DEPED_CONSTRAINTS.length - 1
+                const isMet = isLastRule ? (isAll || !isSHS || strand !== 'N/A') : true
+                return (
+                  <div key={i} className="constraint-row">
+                    <div className={isMet ? 'constraint-icon ok' : 'constraint-icon warn'}>
+                      {isMet ? <IconCheck /> : <IconAlert />}
+                    </div>
+                    <span className={isMet ? 'constraint-text ok' : 'constraint-text warn'}>
+                      {label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {error && <div className="constraint-text warn">{error}</div>}
+
+          <button className="proceed-btn" onClick={handleGenerate} disabled={generating}>
+            <IconZap /> {generating ? 'Generating...' : 'Generate Teaching Load'}
+          </button>
+
+          <button className="btn btn-outline btn-full" onClick={() => setAlgorithm(algorithm === 'greedy' ? 'backtracking' : 'greedy')} disabled={clearing || generating}>
+            Toggle Algorithm: {algorithm === 'greedy' ? 'Greedy' : 'Backtracking'}
+          </button>
+
+          <button className="btn btn-outline btn-full" onClick={() => setShowManual(true)} disabled={!selectedSchoolYear || clearing || generating}>
+            Manual Assignment
+          </button>
+
+          <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
+            {clearing ? 'Clearing…' : 'Clear Generated Loads (For Testing)'}
+          </button>
+
+        </div>
+
+
+        <div className="card card-body">
+          <div className="row-between sched-preview-header no-print">
+            <div>
+              <div className="section-title">
+                {results ? 'Generated Teaching Load' : 'Subject Offerings Preview'}
+              </div>
+              <div className="section-sub">
+                {results
+                  ? `${assigned.length} subject${assigned.length === 1 ? '' : 's'} assigned · ${scheduleRows.length} period${scheduleRows.length === 1 ? '' : 's'} scheduled · ${skipped.length} unresolved`
+                  : (isAll
+                      ? 'All Levels — Elementary, JHS, SHS'
+                      : eduLevel + ' · ' + gradeLevel + (isSHS && strand !== 'N/A' ? ' · ' + strand : ''))
+                      + (selectedSchoolYear ? ` · S.Y. ${selectedSchoolYear.year_start}–${selectedSchoolYear.year_end}` : '')
+                }
+              </div>
+            </div>
+            {results ? (
+              <button className="btn btn-primary btn-sm" onClick={handlePrint}>Print</button>
+            ) : (
+              <div className="readonly-badge">
+                <IconLayers /> Read-only
+              </div>
+            )}
+          </div>
+
+          {results ? (
+            <div id="printable-schedule" className="paper-sheet-inline">
+              <div className="paper-letterhead">
+                <h1>Teaching Load Schedule</h1>
+                <p>Generated {new Date().toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+              </div>
+
+              {assigned.length === 0 && skipped.length === 0 && results.already_assigned_count > 0 && (
+                <div className="constraint-text warn" style={{ marginBottom: '12px' }}>
+                  All {results.already_assigned_count} offering{results.already_assigned_count === 1 ? '' : 's'} in this scope
+                  already {results.already_assigned_count === 1 ? 'has' : 'have'} a teaching load. Nothing new to generate —
+                  use "Clear Generated Loads" on the left if you want to re-run this scope.
+                </div>
+              )}
+
+              <table className="paper-table">
+                <thead>
+                  <tr>
+                    <th>Teacher</th>
+                    <th>Section</th>
+                    <th>Subject</th>
+                    <th>Day</th>
+                    <th>Time</th>
+                    <th>Room</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {scheduleRows.length === 0 ? (
+                    <tr><td colSpan={6} className="paper-empty">Nothing was assigned.</td></tr>
+                  ) : (
+                    scheduleRows.map((r, i) => (
+                      <tr key={i}>
+                        <td>{r.teacher}</td>
+                        <td>{r.section}</td>
+                        <td>{r.subject}</td>
+                        <td>{r.day}</td>
+                        <td>{r.time}</td>
+                        <td>{r.room}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+
+              {skipped.length > 0 && (
+                <div className="paper-unresolved">
+                  <h2>Unresolved</h2>
+                  <ul>
+                    {skipped.map((s, i) => (
+                      <li key={i}>{s.section} — {s.subject}: {s.reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Subject</th>
+                      <th>Type</th>
+                      <th className="right">Hrs/Wk</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td colSpan={3} className="table-empty-cell">
+                        No subject offerings configured. Set up subjects in Curriculum Setup first.
+                      </td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2} className="preview-total-label">Total Weekly Hours</td>
+                      <td className="td-right preview-total-value">0h</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <div className="info-box">
+                <IconAlert />
+                <div>
+                  <div className="info-box-title">Before Generating</div>
+                  <div className="info-box-text">
+                    Ensure all teachers have complete specialization records and that sections are properly
+                    configured in Curriculum Setup. The system will flag unresolvable conflicts for manual review.
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+        </div>
+      </div>
+      {showManual && selectedSchoolYear && (
+        <ManualAssignmentModal
+          scope={{
+            school_year: selectedSchoolYear.year_start,
+            education_level: eduLevel,
+            grade_level: gradeLevel,
+            strand: strand,
+          }}
+          onClose={() => setShowManual(false)}
+          onChanged={() => setResults(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+export default SchedulingPage
