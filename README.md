@@ -30,7 +30,8 @@ Database Design:
 Relational MySQL schema with primary/foreign key constraints, normalized to 3NF.
 
 Entity-Relationship Diagram:
-![ERD](docs/erd.md)
+![ERD](https://github.com/user-attachments/assets/5fc9b862-6358-40c7-bcba-7964a4158b57)
+
 
 Tech Stack:
 Backend: Python, Django, Django REST Framework (JWT auth)
