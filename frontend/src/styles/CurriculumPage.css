@@ -1,0 +1,61 @@
+.card > .tabs-bar { border-radius: var(--radius) var(--radius) 0 0; }
+.tabs-bar { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; background: #fff; }
+.tab-btn {
+  padding: 14px 24px; font-size: 14px; font-weight: 500; color: var(--muted); white-space: nowrap;
+  border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .12s, border-color .12s, background .12s;
+}
+.tab-btn:hover { color: #0f172a; background: #fafafa; }
+.tab-btn.active { color: var(--navy); border-bottom-color: var(--navy); font-weight: 600; }
+
+.tab-body { padding: 24px; }
+.tab-body .form-error { margin-bottom: 16px; }
+.tab-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+.tab-header-text h3 { font-size: 16px; font-weight: 600; color: #0f172a; }
+.tab-header-text p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+/* Grade levels */
+.grade-cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grade-group { border: 1px solid var(--border); border-top: 3px solid var(--navy); border-radius: var(--radius); padding: 16px; background: #fafbfc; }
+.grade-group.jhs { border-top-color: #0369a1; }
+.grade-group.shs { border-top-color: var(--red); }
+.grade-group-badge {
+  display: inline-flex; padding: 3px 10px; border-radius: var(--radius-sm); margin-bottom: 12px;
+  font-size: 12px; font-weight: 600;
+}
+.grade-group-badge.elem { background: var(--navy-tint); color: var(--navy); }
+.grade-group-badge.jhs  { background: #e0f2fe; color: #0369a1; }
+.grade-group-badge.shs  { background: var(--red-tint); color: var(--red); }
+.grade-list { display: flex; flex-direction: column; gap: 6px; }
+.grade-item {
+  display: flex; align-items: center; justify-content: space-between; padding: 7px 12px;
+  background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-sm);
+}
+.grade-item-label { font-size: 13px; font-weight: 500; color: #0f172a; }
+.grade-item button { padding: 4px; border-radius: var(--radius-sm); color: #cbd5e1; display: flex; transition: background .12s, color .12s; }
+.grade-item button:hover { color: var(--navy); background: var(--navy-tint); }
+.grade-item button svg { width: 14px; height: 14px; display: block; }
+
+/* Tracks & strands */
+.tracks-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.track-card { border: 1px solid var(--border); border-left: 4px solid var(--navy); border-radius: var(--radius); padding: 16px; background: #fafbfc; }
+.track-card.tvl    { border-left-color: var(--amber); }
+.track-card.sports { border-left-color: var(--green); }
+.track-card.arts   { border-left-color: #7e22ce; }
+.track-title { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: #0f172a; }
+.strand-list { display: flex; flex-direction: column; gap: 8px; }
+.strand-item { display: flex; align-items: flex-start; gap: 10px; padding: 9px 12px; background: #fff; border: 1px solid var(--border-soft); border-radius: var(--radius-sm); }
+.strand-dot { width: 6px; height: 6px; border-radius: 1px; background: var(--navy); margin-top: 6px; flex-shrink: 0; }
+.track-card.tvl .strand-dot    { background: var(--amber); }
+.track-card.sports .strand-dot { background: var(--green); }
+.track-card.arts .strand-dot   { background: #7e22ce; }
+.strand-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+.strand-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* Subject offering inline form */
+.offering-form { margin-bottom: 18px; background: #fafbfc; border-left: 3px solid var(--navy); }
+.offering-form .form-error { margin-bottom: 14px; }
+.offering-form-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 16px; }
+.offering-form-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.offering-form-footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 14px; border-top: 1px solid var(--border-soft); }
+
+@media (max-width: 1000px) { .grade-cols, .tracks-grid { grid-template-columns: 1fr; } }

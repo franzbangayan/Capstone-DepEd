@@ -1,0 +1,7 @@
+/* ─── Logo Mark ──────────────────────────────────────────────────────────── */
+
+.logo-mark-img {
+  border-radius: 8px;
+  object-fit: cover;
+  display: block;
+}

@@ -1,0 +1,53 @@
+.sidebar {
+  width: 240px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
+  display: flex; flex-direction: column;
+  background: var(--navy); border-right: 1px solid var(--navy-dark);
+}
+
+.sidebar-logo {
+  position: relative; display: flex; align-items: center; gap: 8px;
+  padding: 20px 18px 16px; border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.sidebar-deped-logo {
+  width: 34px; height: 34px; flex-shrink: 0; margin-left: -6px;
+  padding: 2px; border-radius: 50%; background: #fff; object-fit: contain;
+}
+
+.sidebar-logo-text { min-width: 0; }
+.sidebar-logo-name { color: #fff; font-size: 17px; font-weight: 700; line-height: 1.15; }
+.sidebar-logo-tag { margin-top: 3px; font-size: 9px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; line-height: 1.45; color: rgba(255,255,255,.6); }
+
+.sidebar-nav { flex: 1; padding: 10px 0; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; }
+.sidebar-nav::before {
+  content: 'Main Menu'; padding: 12px 18px 6px;
+  font-size: 10px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.4);
+}
+.nav-btn {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 10px 18px; font-size: 14px; font-weight: 400; text-decoration: none;
+  color: rgba(255,255,255,.75); border-left: 3px solid transparent;
+  transition: background .12s, color .12s;
+}
+.nav-btn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.nav-btn.active { background: rgba(255,255,255,.14); color: #fff; font-weight: 600; border-left-color: var(--red); }
+.nav-icon { width: 18px; height: 18px; flex-shrink: 0; opacity: .7; display: flex; }
+.nav-icon svg { width: 100%; height: 100%; }
+.nav-btn.active .nav-icon, .nav-btn:hover .nav-icon { opacity: 1; }
+
+.sidebar-footer { padding: 10px 0; border-top: 1px solid rgba(255,255,255,.12); }
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
+.sidebar-avatar {
+  width: 32px; height: 32px; border-radius: 4px; background: rgba(255,255,255,.18);
+  display: flex; align-items: center; justify-content: center; color: #fff; font-size: 12px; font-weight: 700;
+}
+.sidebar-user-name { color: #fff; font-size: 13px; font-weight: 600; }
+.sidebar-user-role { color: rgba(255,255,255,.5); font-size: 11px; }
+.sidebar-logout {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 18px;
+  color: rgba(255,255,255,.6); font-size: 13px; border-left: 3px solid transparent;
+  transition: background .12s, color .12s;
+}
+.sidebar-logout:hover { background: rgba(255,255,255,.08); color: #fff; }
+.sidebar-logout svg { width: 16px; height: 16px; }
+
+@media (max-width: 800px) { .sidebar { width: 200px; } }
