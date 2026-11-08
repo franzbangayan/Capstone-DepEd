@@ -71,6 +71,7 @@ const SchedulingPage = () => {
 
   const [generating, setGenerating] = useState(false)
   const [generationProgress, setGenerationProgress] = useState(null)
+  const [generationNotice, setGenerationNotice] = useState(null)
   const [clearing, setClearing]     = useState(false)
   const [error, setError]           = useState(null)
   const [results, setResults]       = useState(null)   // set -> right panel switches to the generated schedule
@@ -112,6 +113,7 @@ const SchedulingPage = () => {
   const handleGenerate = async () => {
     setGenerating(true)
     setGenerationProgress({ phase: 'preparing' })
+    setGenerationNotice(null)
     setError(null)
     setResults(null)
     try {
@@ -158,6 +160,11 @@ const SchedulingPage = () => {
           setGenerationProgress(event)
         } else if (event.type === 'complete') {
           setResults(event.results)
+          setGenerationProgress({ phase: 'complete', current: 100, total: 100 })
+          setGenerationNotice({
+            type: 'success',
+            message: `Generation complete: ${event.results.assigned_count || 0} subject${event.results.assigned_count === 1 ? '' : 's'} assigned${event.results.skipped_count ? `, ${event.results.skipped_count} unresolved` : ''}.`,
+          })
           receivedResults = true
         } else if (event.type === 'error') {
           throw new Error(event.message)
@@ -179,6 +186,7 @@ const SchedulingPage = () => {
       }
     } catch (err) {
       console.error(err)
+      setGenerationNotice(null)
       setError(err?.message || 'Failed to generate teaching load. Check the server logs.')
     } finally {
       setGenerating(false)
@@ -217,26 +225,31 @@ const SchedulingPage = () => {
     }
   }
 
-  const assigned = results?.assigned || []
-  const skipped = results?.skipped || []
-  const scheduleRows = flattenSchedule(assigned)
-  const generationProgressPercent = generationProgress?.total > 0
-    ? Math.min(100, Math.round((generationProgress.current / generationProgress.total) * 100))
+const assigned = results?.assigned || []
+const skipped = results?.skipped || []
+const scheduleRows = flattenSchedule(assigned)
+
+const generationProgressPercent =
+  generationProgress?.total > 0
+    ? Math.min(
+        generationProgress?.phase === 'searching' ? 99 : 100,
+        Math.max(1, Math.round((generationProgress.current / generationProgress.total) * 100)),
+      )
     : null
-  const generationDescription = generationProgress?.phase === 'allocating'
-    ? `Assigning subjects: ${generationProgress.current} of ${generationProgress.total} tasks complete.`
-    : generationProgress?.phase === 'searching'
-      ? `${generationProgress.current.toLocaleString()} of ${generationProgress.total.toLocaleString()} candidates explored (${generationProgressPercent ?? 0}% of the search limit).`
-      : generationProgress?.phase === 'finalizing'
-        ? 'Finalizing the schedule before saving…'
+
+const generationDescription =
+  generationProgress?.phase === 'searching'
+    ? 'Searching for the best schedule…'
+    : generationProgress?.phase === 'complete'
+      ? 'Generation complete.'
+    : generationProgress?.phase === 'finalizing'
+      ? 'Finalizing the schedule before saving…'
       : generationProgress?.phase === 'saving'
-        ? `Writing schedule rows: ${generationProgress.current} of ${generationProgress.total}.`
-        : 'Preparing assignments…'
-  const generationProgressLabel = generationProgress?.phase === 'searching'
-    ? `${generationProgressPercent}% of search limit explored`
-    : generationProgress?.phase === 'saving'
-      ? `${generationProgressPercent}% of schedule rows written`
-      : `${generationProgressPercent}% of assignment tasks complete`
+        ? 'Writing schedule rows…'
+        : 'Generating teaching load…'
+
+
+
 
   return (
     <div className="screen">
@@ -250,22 +263,18 @@ const SchedulingPage = () => {
             aria-describedby="generation-modal-description"
             aria-busy="true"
           >
-            <div className="generation-spinner" aria-hidden="true" />
             <h2 id="generation-modal-title">Generating Teaching Load</h2>
             <p id="generation-modal-description" role="status" aria-live="polite">
               {generationDescription}
             </p>
             {generationProgressPercent !== null && (
-              <div className="generation-percent">{generationProgressLabel}</div>
+              <div className="generation-percent">{generationProgressPercent}% complete</div>
             )}
             <div
               className="generation-progress-track"
               role="progressbar"
-              aria-label={generationProgress?.phase === 'searching'
-                ? 'Backtracking search limit progress'
-                : generationProgress?.phase === 'saving'
-                  ? 'Schedule row-writing progress'
-                  : 'Assignment progress'}
+              aria-label="Teaching load generation progress"
+              aria-busy="true"
               aria-valuemin={generationProgressPercent === null ? undefined : 0}
               aria-valuemax={generationProgressPercent === null ? undefined : 100}
               aria-valuenow={generationProgressPercent ?? undefined}
@@ -406,6 +415,11 @@ const SchedulingPage = () => {
           </div>
 
           {error && <div className="constraint-text warn">{error}</div>}
+          {generationNotice && (
+            <div className="generation-notice" role="status">
+              {generationNotice.message}
+            </div>
+          )}
 
           <button className="proceed-btn" onClick={handleGenerate} disabled={generating}>
             <IconZap /> {generating ? 'Generating...' : 'Generate Teaching Load'}
@@ -419,9 +433,9 @@ const SchedulingPage = () => {
             Manual Assignment
           </button>
 
-          <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
+          {/* <button className="btn btn-outline btn-full" onClick={handleClear} disabled={clearing || generating}>
             {clearing ? 'Clearing…' : 'Clear Generated Loads (For Testing)'}
-          </button>
+          </button> */}
 
         </div>
 

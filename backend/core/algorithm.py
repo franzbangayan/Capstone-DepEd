@@ -231,13 +231,25 @@ def _build_tasks(
     return tasks, already_assigned_count
 
 
-def _report_progress(progress_callback, phase, current=None, total=None):
+def _report_progress(
+    progress_callback,
+    phase,
+    current=None,
+    total=None,
+    tasks_current=None,
+    tasks_total=None,
+):
     if progress_callback is not None:
-        progress_callback({
+        progress = {
             "phase": phase,
             "current": current,
             "total": total,
-        })
+        }
+        if tasks_current is not None:
+            progress["tasks_current"] = tasks_current
+        if tasks_total is not None:
+            progress["tasks_total"] = tasks_total
+        progress_callback(progress)
 
 
 def _active_specializations(subject, strand=None):
@@ -1101,6 +1113,7 @@ def run_backtracking_allocation(
         if rooms_before is not None:
             restore_rooms(rooms_before)
 
+    total_tasks = len(tasks)
     total = len(task_data)
 
     # frames[depth] holds the untried teacher options for that task.
@@ -1115,9 +1128,33 @@ def run_backtracking_allocation(
     nodes = 0
     depth = 0
     budget_exhausted = False
-    _report_progress(progress_callback, "searching", 0, MAX_BACKTRACK_NODES)
+    task_progress = len(skipped)
+
+    # Greedy reports how many assignment tasks have been processed. Keep the
+    # same user-facing signal for backtracking, while retaining search-node
+    # progress in current/total for diagnostics.
+    _report_progress(
+        progress_callback,
+        "allocating",
+        task_progress,
+        total_tasks,
+        tasks_current=task_progress,
+        tasks_total=total_tasks,
+    )
+
+    def report_search_progress():
+        _report_progress(
+            progress_callback,
+            "searching",
+            min(nodes, MAX_BACKTRACK_NODES),
+            MAX_BACKTRACK_NODES,
+            tasks_current=task_progress,
+            tasks_total=total_tasks,
+        )
 
     while depth >= 0:
+        task_progress = max(task_progress, len(skipped) + min(depth, total))
+
         if depth == total:
             if best_skips is None or skips_in_path < best_skips:
                 best_path = list(path)
@@ -1186,12 +1223,7 @@ def run_backtracking_allocation(
                 break
 
             if nodes % 100 == 0 or nodes == MAX_BACKTRACK_NODES:
-                _report_progress(
-                    progress_callback,
-                    "searching",
-                    nodes,
-                    MAX_BACKTRACK_NODES,
-                )
+                report_search_progress()
 
             teacher = frame["options"][index]
             limit = teacher.current_load_limit
@@ -1244,12 +1276,7 @@ def run_backtracking_allocation(
             frames[depth] = None
             depth -= 1
 
-    _report_progress(
-        progress_callback,
-        "searching",
-        min(nodes, MAX_BACKTRACK_NODES),
-        MAX_BACKTRACK_NODES,
-    )
+    report_search_progress()
 
     # If the budget ran out before any complete schedule was found, keep
     # the choices made so far and mark the remaining tasks as skipped.
@@ -1277,6 +1304,16 @@ def run_backtracking_allocation(
                 "slots": choice["slots"],
             }
         )
+
+    task_progress = total_tasks
+    _report_progress(
+        progress_callback,
+        "allocating",
+        task_progress,
+        total_tasks,
+        tasks_current=task_progress,
+        tasks_total=total_tasks,
+    )
 
     _report_progress(progress_callback, "finalizing")
 
